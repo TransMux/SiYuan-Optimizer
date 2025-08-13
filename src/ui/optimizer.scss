@@ -1,0 +1,334 @@
+/* 优化器样式 */
+
+.optimizer-container {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    background: var(--b3-theme-background);
+}
+
+.optimizer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--b3-theme-surface-lighter);
+    
+    h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--b3-theme-on-background);
+    }
+}
+
+.optimizer-actions {
+    display: flex;
+    gap: 8px;
+    
+    .b3-button {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        
+        svg {
+            width: 14px;
+            height: 14px;
+        }
+    }
+}
+
+.optimizer-tabs {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    
+    .b3-tab-bar {
+        margin-bottom: 16px;
+        
+        .b3-tab-bar__tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            
+            svg {
+                width: 16px;
+                height: 16px;
+            }
+        }
+    }
+}
+
+.optimizer-tab-content {
+    flex: 1;
+    overflow: auto;
+}
+
+.optimizer-tab-panel {
+    height: 100%;
+}
+
+.optimizer-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--b3-theme-on-surface);
+    
+    svg {
+        width: 32px;
+        height: 32px;
+        margin-bottom: 12px;
+        color: var(--b3-theme-primary);
+    }
+}
+
+.optimizer-empty,
+.optimizer-error {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+    color: var(--b3-theme-on-surface);
+    
+    svg {
+        width: 48px;
+        height: 48px;
+        margin-bottom: 16px;
+    }
+    
+    p {
+        margin: 0;
+        font-size: 14px;
+    }
+}
+
+.optimizer-error {
+    color: var(--b3-theme-error);
+    
+    svg {
+        color: var(--b3-theme-error);
+    }
+}
+
+.optimizer-summary {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--b3-theme-surface);
+    border-radius: 6px;
+    
+    p {
+        margin: 0;
+        font-size: 14px;
+        color: var(--b3-theme-on-surface);
+    }
+}
+
+.optimizer-group {
+    margin-bottom: 24px;
+    border: 1px solid var(--b3-theme-surface-lighter);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.optimizer-group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--b3-theme-surface);
+    border-bottom: 1px solid var(--b3-theme-surface-lighter);
+    
+    h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 500;
+        color: var(--b3-theme-on-surface);
+    }
+}
+
+.optimizer-count {
+    font-size: 12px;
+    color: var(--b3-theme-on-surface-light);
+    background: var(--b3-theme-surface-lighter);
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.optimizer-group-content {
+    padding: 16px;
+}
+
+.optimizer-doc-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--b3-theme-surface-lighter);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    
+    &:hover {
+        background: var(--b3-theme-surface);
+        border-color: var(--b3-theme-primary-lighter);
+    }
+    
+    &.optimizer-main-doc {
+        background: var(--b3-theme-primary-lightest);
+        border-color: var(--b3-theme-primary);
+        
+        &::before {
+            content: "主文档";
+            position: absolute;
+            top: -6px;
+            right: 8px;
+            background: var(--b3-theme-primary);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+        
+        position: relative;
+    }
+    
+    .b3-form__label {
+        flex: 1;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+}
+
+.optimizer-doc-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.optimizer-doc-title {
+    font-weight: 500;
+    color: var(--b3-theme-on-background);
+}
+
+.optimizer-doc-path {
+    font-size: 12px;
+    color: var(--b3-theme-on-surface-light);
+}
+
+.optimizer-doc-meta {
+    font-size: 11px;
+    color: var(--b3-theme-on-surface-light);
+}
+
+.optimizer-group-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--b3-theme-surface);
+    border-top: 1px solid var(--b3-theme-surface-lighter);
+}
+
+.optimizer-actions-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--b3-theme-surface);
+    border-radius: 6px;
+}
+
+.optimizer-doc-list {
+    .optimizer-doc-item {
+        margin-bottom: 8px;
+        
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .optimizer-container {
+        padding: 12px;
+    }
+    
+    .optimizer-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .optimizer-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    .optimizer-doc-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        
+        .b3-form__label {
+            width: 100%;
+        }
+        
+        .b3-button {
+            align-self: flex-end;
+        }
+    }
+    
+    .optimizer-group-actions,
+    .optimizer-actions-bar {
+        flex-direction: column;
+        
+        .b3-button {
+            width: 100%;
+        }
+    }
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.optimizer-group,
+.optimizer-doc-item {
+    animation: fadeIn 0.3s ease;
+}
+
+/* 滚动条样式 */
+.optimizer-tab-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.optimizer-tab-content::-webkit-scrollbar-track {
+    background: var(--b3-theme-surface);
+}
+
+.optimizer-tab-content::-webkit-scrollbar-thumb {
+    background: var(--b3-theme-surface-lighter);
+    border-radius: 3px;
+}
+
+.optimizer-tab-content::-webkit-scrollbar-thumb:hover {
+    background: var(--b3-theme-on-surface-light);
+}
