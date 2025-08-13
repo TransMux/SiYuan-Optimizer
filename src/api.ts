@@ -1,7 +1,7 @@
 /**
  * Copyright (c) 2023 frostime. All rights reserved.
  * https://github.com/frostime/sy-plugin-template-vite
- * 
+ *
  * See API Document in [API.md](https://github.com/siyuan-note/siyuan/blob/master/API.md)
  * API 文档见 [API_zh_CN.md](https://github.com/siyuan-note/siyuan/blob/master/API_zh_CN.md)
  */
@@ -338,8 +338,8 @@ export async function getFile(path: string): Promise<any> {
 
 /**
  * fetchPost will secretly convert data into json, this func merely return Blob
- * @param endpoint 
- * @returns 
+ * @param endpoint
+ * @returns
  */
 export const getFileBlob = async (path: string): Promise<Blob | null> => {
     const endpoint = '/api/file/getFile'
@@ -466,85 +466,38 @@ export async function findEmptyDocuments(): Promise<any[]> {
                      )
                      ORDER BY b.updated DESC`;
     return await sql(sqlScript);
-}
-
 /**
- * 获取文档的所有引用
- * @param docId 文档ID
- * @returns 引用列表
+ * 获取文档的所有引用（基于 refs 表）
  */
 export async function getDocumentReferences(docId: string): Promise<any[]> {
-    let sqlScript = `SELECT id, content, hpath, box, path, root_id
-                     FROM blocks
-                     WHERE content LIKE '%((${docId}%'
-                     OR content LIKE '%siyuan://blocks/${docId}%'
-                     ORDER BY updated DESC`;
+    const sqlScript = `SELECT b.id, b.content, b.hpath, b.box, b.path, b.root_id, b.updated
+                       FROM refs r
+                       JOIN blocks b ON b.id = r.block_id
+                       WHERE r.def_block_id = '${docId}'
+                       ORDER BY b.updated DESC`;
     return await sql(sqlScript);
 }
 
+}
+
+
 /**
- * 更新引用中的文档ID
- * @param oldDocId 旧文档ID
- * @param newDocId 新文档ID
- * @returns 更新结果
+ * 将所有引用从旧文档转移到新文档
  */
-export async function updateDocumentReferences(oldDocId: string, newDocId: string): Promise<any> {
-    // 获取所有包含旧文档ID的块
-    const references = await getDocumentReferences(oldDocId);
-
-    const operations = [];
-    for (const ref of references) {
-        // 替换引用中的文档ID
-        let newContent = ref.content
-            .replace(new RegExp(`\\(\\(${oldDocId}`, 'g'), `((${newDocId}`)
-            .replace(new RegExp(`siyuan://blocks/${oldDocId}`, 'g'), `siyuan://blocks/${newDocId}`);
-
-        operations.push({
-            action: "update",
-            id: ref.id,
-            data: newContent
-        });
-    }
-
-    if (operations.length > 0) {
-        return await doOperations(operations);
-    }
-    return { code: 0, msg: "No references to update" };
+export async function transferAllReferences(oldDocId: string, newDocId: string) {
+    // 不指定 refIDs 时，后端会自动转移所有引用
+    return transferBlockRef(oldDocId, newDocId, [] as any);
 }
 
 /**
- * 获取文档的完整DOM内容
- * @param docId 文档ID
- * @returns DOM内容
- */
-export async function getDocumentDOM(docId: string): Promise<string> {
-    const result = await getBlockKramdown(docId);
-    return result?.kramdown || '';
-}
-
-/**
- * 合并文档内容到主文档
- * @param mainDocId 主文档ID
- * @param sourceDocId 源文档ID
- * @returns 合并结果
+ * 合并文档内容到主文档（使用 Markdown 方式追加到末尾）
  */
 export async function mergeDocumentContent(mainDocId: string, sourceDocId: string): Promise<any> {
     try {
-        // 获取源文档的DOM内容
-        const sourceDOM = await getDocumentDOM(sourceDocId);
-        if (!sourceDOM) {
-            throw new Error('Failed to get source document content');
-        }
-
-        // 在主文档末尾插入源文档内容
-        const insertResult = await insertBlock({
-            dataType: "markdown",
-            data: sourceDOM,
-            parentID: mainDocId,
-            previousID: ""
-        });
-
-        return insertResult;
+        const md = await exportMdContent(sourceDocId);
+        const content = md?.content || "";
+        // 直接在主文档末尾追加 Markdown 内容
+        return await appendBlock("markdown", content, mainDocId);
     } catch (error) {
         console.error('Error merging document content:', error);
         throw error;

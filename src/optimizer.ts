@@ -2,12 +2,10 @@
  * 文档优化器 - 处理文档合并和删除逻辑
  */
 
-import { 
-    findDuplicateDocuments, 
-    findEmptyDocuments, 
-    getDocumentReferences, 
-    updateDocumentReferences, 
-    getDocumentDOM, 
+import {
+    findDuplicateDocuments,
+    findEmptyDocuments,
+    transferAllReferences,
     mergeDocumentContent,
     removeDoc,
     sql
@@ -106,10 +104,10 @@ export class DocumentOptimizer {
             for (const sourceDocId of sourceDocIds) {
                 if (sourceDocId === mainDocId) continue;
                 
-                // 1. 转移引用
-                await updateDocumentReferences(sourceDocId, mainDocId);
-                
-                // 2. 合并内容
+                // 1. 转移引用（后端安全处理 refs 表）
+                await transferAllReferences(sourceDocId, mainDocId);
+
+                // 2. 合并内容（导出 Markdown 后追加）
                 await mergeDocumentContent(mainDocId, sourceDocId);
                 
                 // 3. 删除源文档

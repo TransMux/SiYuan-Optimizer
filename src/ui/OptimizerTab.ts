@@ -8,11 +8,13 @@ export class OptimizerTab {
     private element: HTMLElement;
     private optimizer: DocumentOptimizer;
     private i18n: any;
-    
-    constructor(element: HTMLElement, i18n: any) {
+    private defaultTab: 'merge' | 'delete';
+
+    constructor(element: HTMLElement, i18n: any, defaultTab: 'merge' | 'delete' = 'merge') {
         this.element = element;
         this.optimizer = new DocumentOptimizer();
         this.i18n = i18n;
+        this.defaultTab = defaultTab;
         this.init();
     }
     
@@ -94,8 +96,12 @@ export class OptimizerTab {
             this.close();
         });
         
-        // 初始加载合并页面
-        this.loadMergePanel();
+        // 根据默认标签初始化
+        if (this.defaultTab === 'delete') {
+            this.switchTab('delete');
+        } else {
+            this.switchTab('merge');
+        }
     }
     
     private switchTab(tabType: string) {
@@ -107,14 +113,14 @@ export class OptimizerTab {
         
         // 切换面板
         this.element.querySelectorAll('.optimizer-tab-panel').forEach(panel => {
-            panel.style.display = 'none';
+            (panel as HTMLElement).style.display = 'none';
         });
         
         if (tabType === 'merge') {
-            this.element.querySelector('#mergePanel').style.display = 'block';
+            (this.element.querySelector('#mergePanel') as HTMLElement).style.display = 'block';
             this.loadMergePanel();
         } else if (tabType === 'delete') {
-            this.element.querySelector('#deletePanel').style.display = 'block';
+            (this.element.querySelector('#deletePanel') as HTMLElement).style.display = 'block';
             this.loadDeletePanel();
         }
     }
@@ -404,7 +410,6 @@ export class OptimizerTab {
         try {
             // 显示加载状态
             const mergeBtn = group.querySelector('[data-action="merge"]') as HTMLButtonElement;
-            const originalText = mergeBtn.textContent;
             mergeBtn.textContent = this.i18n.merging;
             mergeBtn.disabled = true;
 
@@ -443,7 +448,6 @@ export class OptimizerTab {
         try {
             // 显示加载状态
             const deleteBtn = this.element.querySelector('#deleteSelected') as HTMLButtonElement;
-            const originalText = deleteBtn.textContent;
             deleteBtn.textContent = this.i18n.deleting;
             deleteBtn.disabled = true;
 
