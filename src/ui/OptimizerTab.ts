@@ -189,11 +189,11 @@ export class OptimizerTab {
                                     </span>
                                 </div>
                                 <div class="optimizer-doc-actions">
-                                    <button class="b3-button" data-action="setMain" data-group="${groupIndex}" data-doc="${docIndex}">
-                                        ${this.i18n.setAsMainDoc}
-                                    </button>
                                     <button class="b3-button b3-button--primary fn__none" data-action="confirmMerge" data-group="${groupIndex}" data-doc="${docIndex}">
                                         ${this.i18n.mergeSelected}
+                                    </button>
+                                    <button class="b3-button" data-action="setMain" data-group="${groupIndex}" data-doc="${docIndex}">
+                                        ${this.i18n.setAsMainDoc}
                                     </button>
                                     <button class="b3-button b3-button--remove" data-action="deleteDoc" data-doc-id="${doc.id}" data-box="${doc.box}" data-path="${doc.path}">
                                         ${this.i18n.delete}
