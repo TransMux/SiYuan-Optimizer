@@ -374,12 +374,22 @@ export class OptimizerTab {
     }
 
     private bindDeleteEvents() {
-        // 全选空文档
+        // 点击标题在侧边栏打开（右侧），并阻止默认跳转以避免界面重载
+        this.element.querySelectorAll('#deleteContent .optimizer-doc-title').forEach(a => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = (e.currentTarget as HTMLElement).getAttribute('data-open-id');
+                if (!id) return;
+                this.element.dispatchEvent(new CustomEvent('optimizer-open-doc', { detail: { id, position: 'right' } }));
+            });
+        });
+
+        // 全选空文档（按钮可能不存在，做兼容处理）
         this.element.querySelector('#selectAllEmpty')?.addEventListener('click', () => {
             this.selectAllEmptyDocs(true);
         });
 
-        // 取消全选空文档
+        // 取消全选空文档（按钮可能不存在，做兼容处理）
         this.element.querySelector('#deselectAllEmpty')?.addEventListener('click', () => {
             this.selectAllEmptyDocs(false);
         });
