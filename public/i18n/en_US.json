@@ -27,7 +27,7 @@
     "selectDocsToMerge": "Select documents to merge",
     "selectDocsToDelete": "Select documents to delete",
     "setAsMainDoc": "Set as main document",
-    "mergeSelected": "Merge selected documents",
+    "mergeSelected": "Confirm merge document",
     "deleteSelected": "Delete selected documents",
     "merging": "Merging...",
     "deleting": "Deleting...",

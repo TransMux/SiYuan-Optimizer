@@ -400,9 +400,11 @@ export class OptimizerTab {
             content: ele,
             confirm: async () => {
                 try {
-                    const mergeBtn = group.querySelector('[data-action="merge"]') as HTMLButtonElement;
-                    mergeBtn.textContent = this.i18n.merging;
-                    mergeBtn.disabled = true;
+                    const mergeBtn = group.querySelector('[data-action="confirmMerge"]') as HTMLButtonElement;
+                    if (mergeBtn) {
+                        mergeBtn.textContent = this.i18n.merging;
+                        mergeBtn.disabled = true;
+                    }
                     await this.optimizer.mergeDocuments(mainDocId, selectedDocs);
                     this.loadMergePanel();
                 } catch (error) {

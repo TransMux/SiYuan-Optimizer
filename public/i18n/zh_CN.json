@@ -27,7 +27,7 @@
     "selectDocsToMerge": "选择要合并的文档",
     "selectDocsToDelete": "选择要删除的文档",
     "setAsMainDoc": "设为主文档",
-    "mergeSelected": "合并选中文档",
+    "mergeSelected": "确认合并文档",
     "deleteSelected": "删除选中文档",
     "merging": "正在合并...",
     "deleting": "正在删除...",
