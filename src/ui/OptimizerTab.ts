@@ -80,10 +80,16 @@ export class OptimizerTab {
             this.close();
         });
 
-        // 根据默认标签初始化（无 Tab 栏，直接按默认加载一次）
+        // 根据默认标签初始化（无 Tab 栏，切换对应面板可见性后再加载一次）
+        const mergePanel = this.element.querySelector('#mergePanel') as HTMLElement;
+        const deletePanel = this.element.querySelector('#deletePanel') as HTMLElement;
         if (this.defaultTab === 'delete') {
+            if (mergePanel) mergePanel.style.display = 'none';
+            if (deletePanel) deletePanel.style.display = 'block';
             this.loadDeletePanel();
         } else {
+            if (mergePanel) mergePanel.style.display = 'block';
+            if (deletePanel) deletePanel.style.display = 'none';
             this.loadMergePanel();
         }
     }
