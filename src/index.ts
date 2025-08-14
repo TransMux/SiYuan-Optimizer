@@ -106,6 +106,24 @@ export default class SiYuanOptimizer extends Plugin {
                 id: this.name + TAB_TYPE
             },
         });
+        try {
+            const container = document.querySelector('.optimizer-tab-container');
+            if (container) {
+                container.addEventListener('close-tab', () => {
+                    // 关闭当前自定义标签页。优先使用 tab.remove，如果不可用则尝试父级关闭，最后兜底模拟点击关闭图标
+                    if ((tab as any)?.remove) {
+                        (tab as any).remove();
+                    } else if ((tab as any)?.parent?.removeTab) {
+                        (tab as any).parent.removeTab((tab as any).id);
+                    } else {
+                        const closeBtn = (tab as any).headElement?.querySelector('.b3-list-item__close') as HTMLElement;
+                        closeBtn?.click();
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn('close-tab binding failed', e);
+        }
         console.log("Opened optimizer tab:", tab);
     }
 

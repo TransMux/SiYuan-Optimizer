@@ -538,10 +538,12 @@ export class OptimizerTab {
 
 
     private refresh() {
-        const currentTab = this.element.querySelector('.b3-tab-bar__tab--current')?.getAttribute('data-tab');
-        if (currentTab === 'merge') {
+        const mergePanel = this.element.querySelector('#mergePanel') as HTMLElement;
+        const deletePanel = this.element.querySelector('#deletePanel') as HTMLElement;
+        const mergeVisible = !!mergePanel && mergePanel.style.display !== 'none';
+        if (mergeVisible) {
             this.loadMergePanel();
-        } else if (currentTab === 'delete') {
+        } else {
             this.loadDeletePanel();
         }
     }

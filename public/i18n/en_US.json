@@ -44,5 +44,6 @@
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
     "refresh": "Refresh",
-    "close": "Close"
+    "close": "Close",
+    "delete": "Delete"
 }
