@@ -259,11 +259,12 @@ export async function getChildBlocks(id: BlockId): Promise<IResGetChildBlock[]> 
     return request(url, data);
 }
 
-export async function transferBlockRef(fromID: BlockId, toID: BlockId, refIDs: BlockId[]) {
-    let data = {
+export async function transferBlockRef(fromID: BlockId, toID: BlockId, refIDs: BlockId[], reloadUI: boolean = true) {
+    let data: any = {
         fromID: fromID,
         toID: toID,
-        refIDs: refIDs
+        refIDs: refIDs,
+        reloadUI: reloadUI
     }
     let url = '/api/block/transferBlockRef';
     return request(url, data);
@@ -482,8 +483,8 @@ export async function getDocumentReferences(docId: string): Promise<any[]> {
  * 将所有引用从旧文档转移到新文档
  */
 export async function transferAllReferences(oldDocId: string, newDocId: string) {
-    // 不指定 refIDs 时，后端会自动转移所有引用
-    return transferBlockRef(oldDocId, newDocId, [] as any);
+    // 不指定 refIDs 时，后端会自动转移所有引用；为避免触发 UI Reload，这里传入 reloadUI=false
+    return transferBlockRef(oldDocId, newDocId, [] as any, false);
 }
 
 /**
