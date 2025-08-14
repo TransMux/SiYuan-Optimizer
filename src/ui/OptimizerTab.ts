@@ -195,7 +195,7 @@ export class OptimizerTab {
                                     <button class="b3-button b3-button--primary fn__none" data-action="confirmMerge" data-group="${groupIndex}" data-doc="${docIndex}">
                                         ${this.i18n.mergeSelected}
                                     </button>
-                                    <button class="b3-button b3-button--remove" data-action="deleteDoc" data-doc-id="${doc.id}">
+                                    <button class="b3-button b3-button--remove" data-action="deleteDoc" data-doc-id="${doc.id}" data-box="${doc.box}" data-path="${doc.path}">
                                         ${this.i18n.delete}
                                     </button>
                                 </div>
@@ -291,13 +291,33 @@ export class OptimizerTab {
         // 删除单个文档（在合并列表中）
         this.element.querySelectorAll('[data-action="deleteDoc"]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
-                const id = (e.currentTarget as HTMLElement).getAttribute('data-doc-id');
-                if (!id) return;
+                const target = e.currentTarget as HTMLElement;
+                const box = target.getAttribute('data-box');
+                const path = target.getAttribute('data-path');
+                if (!box || !path) return;
                 try {
-                    const doc = await this.optimizer['getDocumentInfo'](id);
-                    if (doc) {
-                        await (await import('../api')).removeDoc(doc.box, doc.path);
-                        this.loadMergePanel();
+                    const { removeDoc } = await import('../api');
+                    await removeDoc(box as any, path);
+                    // 就地更新：移除该文档行，如组为空则移除组并更新计数
+                    const item = target.closest('.optimizer-doc-item');
+                    const groupEl = target.closest('.optimizer-group') as HTMLElement;
+                    item?.remove();
+                    if (groupEl && groupEl.querySelectorAll('.optimizer-doc-item').length === 0) {
+                        const contentEl = this.element.querySelector('#mergeContent') as HTMLElement;
+                        groupEl.remove();
+                        const summaryP = contentEl?.querySelector('.optimizer-summary p') as HTMLElement;
+                        if (summaryP) {
+                            const remaining = contentEl.querySelectorAll('.optimizer-group').length;
+                            summaryP.textContent = this.i18n.foundDuplicateDocs.replace('${count}', remaining.toString());
+                        }
+                        if (contentEl.querySelectorAll('.optimizer-group').length === 0) {
+                            contentEl.innerHTML = `
+                                <div class="optimizer-empty">
+                                    <svg><use xlink:href="#iconInfo"></use></svg>
+                                    <p>${this.i18n.noDuplicateDocsFound}</p>
+                                </div>
+                            `;
+                        }
                     }
                 } catch (err) {
                     console.error('Delete doc failed:', err);
@@ -307,6 +327,43 @@ export class OptimizerTab {
         });
                 this.mergeGroup(groupIndex);
             });
+        });
+
+        // 删除单个文档（事件委托，避免绑定错位导致无效）
+        this.element.addEventListener('click', async (e) => {
+            const btn = (e.target as HTMLElement).closest('[data-action="deleteDoc"]') as HTMLElement | null;
+            if (!btn || !this.element.contains(btn)) return;
+            const box = btn.getAttribute('data-box');
+            const path = btn.getAttribute('data-path');
+            if (!box || !path) return;
+            try {
+                const { removeDoc } = await import('../api');
+                await removeDoc(box as any, path);
+                // 就地更新：移除该文档行，如组为空则移除组并更新计数
+                const item = btn.closest('.optimizer-doc-item');
+                const groupEl = btn.closest('.optimizer-group') as HTMLElement;
+                item?.remove();
+                if (groupEl && groupEl.querySelectorAll('.optimizer-doc-item').length === 0) {
+                    const contentEl = this.element.querySelector('#mergeContent') as HTMLElement;
+                    groupEl.remove();
+                    const summaryP = contentEl?.querySelector('.optimizer-summary p') as HTMLElement;
+                    if (summaryP) {
+                        const remaining = contentEl.querySelectorAll('.optimizer-group').length;
+                        summaryP.textContent = this.i18n.foundDuplicateDocs.replace('${count}', remaining.toString());
+                    }
+                    if (contentEl.querySelectorAll('.optimizer-group').length === 0) {
+                        contentEl.innerHTML = `
+                            <div class="optimizer-empty">
+                                <svg><use xlink:href="#iconInfo"></use></svg>
+                                <p>${this.i18n.noDuplicateDocsFound}</p>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (err: any) {
+                console.error('Delete doc failed:', err);
+                (window as any).siyuan?.ws?.showMessage?.(this.i18n.deleteError.replace('${error}', err?.message ?? err));
+            }
         });
     }
 
@@ -381,7 +438,25 @@ export class OptimizerTab {
                 mergeBtn.disabled = true;
             }
             await this.optimizer.mergeDocuments(mainDocId, selectedDocs);
-            this.loadMergePanel();
+            // 就地更新 UI：移除当前分组，不重新加载搜索结果
+            const contentEl = this.element.querySelector('#mergeContent') as HTMLElement;
+            // 先移除分组
+            group.remove();
+            // 更新顶部汇总数量
+            const summaryP = contentEl?.querySelector('.optimizer-summary p') as HTMLElement;
+            if (summaryP) {
+                const remaining = contentEl.querySelectorAll('.optimizer-group').length;
+                summaryP.textContent = this.i18n.foundDuplicateDocs.replace('${count}', remaining.toString());
+            }
+            // 如果没有剩余分组，显示空态
+            if (contentEl.querySelectorAll('.optimizer-group').length === 0) {
+                contentEl.innerHTML = `
+                    <div class="optimizer-empty">
+                        <svg><use xlink:href="#iconInfo"></use></svg>
+                        <p>${this.i18n.noDuplicateDocsFound}</p>
+                    </div>
+                `;
+            }
         } catch (error) {
             console.error('Merge failed:', error);
             (window as any).siyuan?.ws?.showMessage?.(this.i18n.mergeError.replace('${error}', error.message));
