@@ -77,6 +77,16 @@ export default class SiYuanOptimizer extends Plugin {
                 const container = this.element.querySelector('.optimizer-tab-container') as HTMLElement;
                 const defaultTab = (this.data && this.data.defaultTab) || 'merge';
                 new OptimizerTab(container, pluginI18n, defaultTab);
+                // 监听 UI 请求打开文档事件，统一用插件 openTab 打开
+                container.addEventListener('optimizer-open-doc', (evt: any) => {
+                    const { id, position } = evt.detail || {};
+                    if (!id) return;
+                    openTab({
+                        app: (this as any).app,
+                        doc: { id },
+                        position: position || 'right'
+                    });
+                });
             }
         });
 

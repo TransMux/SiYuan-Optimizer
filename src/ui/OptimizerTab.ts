@@ -11,12 +11,14 @@ export class OptimizerTab {
     private optimizer: DocumentOptimizer;
     private i18n: any;
     private defaultTab: 'merge' | 'delete';
+    private app: any;
 
-    constructor(element: HTMLElement, i18n: any, defaultTab: 'merge' | 'delete' = 'merge') {
+    constructor(element: HTMLElement, i18n: any, defaultTab: 'merge' | 'delete' = 'merge', app?: any) {
         this.element = element;
         this.optimizer = new DocumentOptimizer();
         this.i18n = i18n;
         this.defaultTab = defaultTab;
+        this.app = app;
         this.init();
     }
 
@@ -280,18 +282,14 @@ export class OptimizerTab {
     }
 
     private bindMergeEvents() {
-        // 点击标题在侧边栏打开
+        // 点击标题在侧边栏打开（右侧）
         this.element.querySelectorAll('.optimizer-doc-title').forEach(a => {
             a.addEventListener('click', (e) => {
                 e.preventDefault();
                 const id = (e.currentTarget as HTMLElement).getAttribute('data-open-id');
                 if (!id) return;
-                // 右侧打开
-                (window as any).siyuan?.ws?.openTab?.({
-                    app: (window as any).siyuan?.app,
-                    doc: { id },
-                    position: 'right'
-                });
+                // 使用 SiYuan 插件 API openTab，通过事件派发给主插件处理
+                this.element.dispatchEvent(new CustomEvent('optimizer-open-doc', { detail: { id, position: 'right' } }));
             });
         });
 
@@ -364,12 +362,7 @@ export class OptimizerTab {
         }
     }
 
-    private selectAllInGroup(groupIndex: number, select: boolean) {
-        const checkboxes = this.element.querySelectorAll(`input[data-group="${groupIndex}"]`);
-        checkboxes.forEach(checkbox => {
-            (checkbox as HTMLInputElement).checked = select;
-        });
-    }
+
 
     private selectAllEmptyDocs(select: boolean) {
         const checkboxes = this.element.querySelectorAll('.empty-doc-checkbox');
@@ -505,11 +498,7 @@ export class OptimizerTab {
         return String(updated ?? '');
     }
 
-    private formatSize(size: number): string {
-        if (size < 1024) return `${size}B`;
-        if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
-        return `${(size / (1024 * 1024)).toFixed(1)}MB`;
-    }
+
 
     private refresh() {
         const currentTab = this.element.querySelector('.b3-tab-bar__tab--current')?.getAttribute('data-tab');
