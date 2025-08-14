@@ -3,6 +3,8 @@
  */
 
 import { DocumentOptimizer, DuplicateGroup, DocumentInfo } from '../optimizer';
+import { showMessage } from 'siyuan';
+import { confirmDialog } from '../libs/dialog';
 
 export class OptimizerTab {
     private element: HTMLElement;
@@ -380,7 +382,8 @@ export class OptimizerTab {
         // 获取主文档
         const mainDocItem = group.querySelector('.optimizer-main-doc');
         if (!mainDocItem) {
-            alert('请先设置主文档');
+            // 思源风格提示
+            window.siyuan?.ws?.showMessage?.('请先设置主文档');
             return;
         }
 
@@ -398,14 +401,29 @@ export class OptimizerTab {
         });
 
         if (selectedDocs.length === 0) {
-            alert('请选择要合并的文档');
+            window.siyuan?.ws?.showMessage?.('请选择要合并的文档');
             return;
         }
 
-        // 确认合并
-        if (!confirm(this.i18n.confirmMerge)) {
-            return;
-        }
+        // 确认合并（Dialog）
+        const ele = document.createElement('div');
+        ele.textContent = this.i18n.confirmMerge;
+        confirmDialog({
+            title: this.i18n.mergeDuplicateDocs,
+            content: ele,
+            confirm: async () => {
+                try {
+                    const mergeBtn = group.querySelector('[data-action="merge"]') as HTMLButtonElement;
+                    mergeBtn.textContent = this.i18n.merging;
+                    mergeBtn.disabled = true;
+                    await this.optimizer.mergeDocuments(mainDocId, selectedDocs);
+                    this.loadMergePanel();
+                } catch (error) {
+                    console.error('Merge failed:', error);
+                    (window as any).siyuan?.ws?.showMessage?.(this.i18n.mergeError.replace('${error}', error.message));
+                }
+            }
+        });
 
         try {
             // 显示加载状态
@@ -419,7 +437,7 @@ export class OptimizerTab {
             this.loadMergePanel();
         } catch (error) {
             console.error('Merge failed:', error);
-            alert(this.i18n.mergeError.replace('${error}', error.message));
+            (window as any).siyuan?.ws?.showMessage?.(this.i18n.mergeError.replace('${error}', error.message));
         }
     }
 
@@ -436,14 +454,29 @@ export class OptimizerTab {
         });
 
         if (selectedDocs.length === 0) {
-            alert('请选择要删除的空文档');
+            (window as any).siyuan?.ws?.showMessage?.('请选择要删除的空文档');
             return;
         }
 
         // 确认删除
-        if (!confirm(this.i18n.confirmDelete)) {
-            return;
-        }
+        const ele = document.createElement('div');
+        ele.textContent = this.i18n.confirmDelete;
+        confirmDialog({
+            title: this.i18n.deleteEmptyDocs,
+            content: ele,
+            confirm: async () => {
+                try {
+                    const deleteBtn = this.element.querySelector('#deleteSelected') as HTMLButtonElement;
+                    deleteBtn.textContent = this.i18n.deleting;
+                    deleteBtn.disabled = true;
+                    await this.optimizer.deleteEmptyDocuments(selectedDocs);
+                    this.loadDeletePanel();
+                } catch (error) {
+                    console.error('Delete failed:', error);
+                    (window as any).siyuan?.ws?.showMessage?.(this.i18n.deleteError.replace('${error}', error.message));
+                }
+            }
+        });
 
         try {
             // 显示加载状态
@@ -457,7 +490,7 @@ export class OptimizerTab {
             this.loadDeletePanel();
         } catch (error) {
             console.error('Delete failed:', error);
-            alert(this.i18n.deleteError.replace('${error}', error.message));
+            (window as any).siyuan?.ws?.showMessage?.(this.i18n.deleteError.replace('${error}', error.message));
         }
     }
     

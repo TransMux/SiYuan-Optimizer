@@ -456,16 +456,16 @@ export async function findDuplicateDocuments(title?: string): Promise<any[]> {
  * @returns 空文档列表
  */
 export async function findEmptyDocuments(): Promise<any[]> {
-    let sqlScript = `SELECT b.id, b.content, b.hpath, b.box, b.path, b.updated
-                     FROM blocks b
-                     WHERE b.type = 'd'
-                     AND b.id NOT IN (
-                         SELECT DISTINCT root_id
-                         FROM blocks
-                         WHERE type != 'd' AND root_id IS NOT NULL
-                     )
-                     ORDER BY b.updated DESC`;
+    const sqlScript = `
+        SELECT b.id, b.content, b.hpath, b.box, b.path, b.updated
+        FROM blocks b
+        WHERE b.type = 'd'
+          AND NOT EXISTS (
+              SELECT 1 FROM blocks c WHERE c.root_id = b.id AND c.type != 'd'
+          )
+        ORDER BY b.updated DESC`;
     return await sql(sqlScript);
+}
 /**
  * 获取文档的所有引用（基于 refs 表）
  */
