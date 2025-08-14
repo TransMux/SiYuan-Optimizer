@@ -478,9 +478,6 @@ export async function getDocumentReferences(docId: string): Promise<any[]> {
     return await sql(sqlScript);
 }
 
-}
-
-
 /**
  * 将所有引用从旧文档转移到新文档
  */

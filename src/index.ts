@@ -69,13 +69,14 @@ export default class SiYuanOptimizer extends Plugin {
         });
 
         // 注册自定义页签
+        const pluginI18n = this.i18n;
         this.addTab({
             type: TAB_TYPE,
             init() {
                 this.element.innerHTML = '<div class="optimizer-tab-container"></div>';
                 const container = this.element.querySelector('.optimizer-tab-container') as HTMLElement;
                 const defaultTab = (this.data && this.data.defaultTab) || 'merge';
-                new OptimizerTab(container, (this as any).i18n, defaultTab);
+                new OptimizerTab(container, pluginI18n, defaultTab);
             },
             beforeDestroy: () => {
                 console.log("optimizer tab before destroy");
