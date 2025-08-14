@@ -8,7 +8,8 @@ import {
     transferAllReferences,
     mergeDocumentContent,
     removeDoc,
-    sql
+    sql,
+    getDocumentReferences
 } from './api';
 import { showMessage } from 'siyuan';
 
@@ -19,7 +20,11 @@ export interface DocumentInfo {
     box: string;
     path: string;
     updated: number;
-    size: number;
+    size: number; // 保留字段（兼容），不再展示
+    // 新增统计字段
+    refCount?: number;     // 反链个数
+    childCount?: number;   // 子文档数量
+    bytes?: number;        // 文档内容字节大小（按 markdown 长度汇总）
 }
 
 export interface DuplicateGroup {
@@ -29,7 +34,7 @@ export interface DuplicateGroup {
 }
 
 export class DocumentOptimizer {
-    
+
     /**
      * 获取所有同名文档组
      */
@@ -37,7 +42,7 @@ export class DocumentOptimizer {
         try {
             const results = await findDuplicateDocuments();
             const groups: DuplicateGroup[] = [];
-            
+
             for (const result of results) {
                 const ids = result.ids.split(',');
                 const hpaths = result.hpaths.split(',');
@@ -45,7 +50,7 @@ export class DocumentOptimizer {
                 const paths = result.paths.split(',');
                 const updateds = result.updateds.split(',');
                 const sizes = result.sizes.split(',');
-                
+
                 const documents: DocumentInfo[] = [];
                 for (let i = 0; i < ids.length; i++) {
                     documents.push({
@@ -58,21 +63,44 @@ export class DocumentOptimizer {
                         size: parseInt(sizes[i])
                     });
                 }
-                
+
                 groups.push({
                     title: result.content,
                     documents: documents,
                     count: result.count
                 });
             }
-            
+
+            // 填充反链与子文档统计
+            for (const group of groups) {
+                for (const doc of group.documents) {
+                    try {
+                        // 反链数
+                        const refs = await getDocumentReferences(doc.id);
+                        doc.refCount = Array.isArray(refs) ? refs.length : 0;
+                    } catch {}
+                    try {
+                        // 子文档数量：根据 path 前缀统计 .sy 文件数量
+                        const likePrefix = doc.path.replace(/"/g, '""').replace(/%/g, '\%').replace(/_/g, '\_');
+                        const childRows = await sql(`SELECT COUNT(1) AS cnt FROM blocks WHERE box='${doc.box}' AND path LIKE '${likePrefix}/%' AND type='d'`);
+                        doc.childCount = childRows?.[0]?.cnt ?? 0;
+                    } catch {}
+                    try {
+                        // 近似大小：以 markdown 长度作为字节估计
+                        const statRows = await sql(`SELECT COALESCE(SUM(LENGTH(markdown)),0) AS bytes FROM blocks WHERE root_id='${doc.id}' AND type!='d'`);
+                        doc.bytes = statRows?.[0]?.bytes ?? 0;
+                    } catch {}
+                }
+            }
+
             return groups;
+
         } catch (error) {
             console.error('Error getting duplicate document groups:', error);
             throw error;
         }
     }
-    
+
     /**
      * 获取所有空文档
      */
@@ -93,7 +121,7 @@ export class DocumentOptimizer {
             throw error;
         }
     }
-    
+
     /**
      * 合并文档
      * @param mainDocId 主文档ID
@@ -103,20 +131,20 @@ export class DocumentOptimizer {
         try {
             for (const sourceDocId of sourceDocIds) {
                 if (sourceDocId === mainDocId) continue;
-                
+
                 // 1. 转移引用（后端安全处理 refs 表）
                 await transferAllReferences(sourceDocId, mainDocId);
 
                 // 2. 合并内容（导出 Markdown 后追加）
                 await mergeDocumentContent(mainDocId, sourceDocId);
-                
+
                 // 3. 删除源文档
                 const sourceDoc = await this.getDocumentInfo(sourceDocId);
                 if (sourceDoc) {
                     await removeDoc(sourceDoc.box, sourceDoc.path);
                 }
             }
-            
+
             showMessage(`成功合并 ${sourceDocIds.length} 个文档`);
         } catch (error) {
             console.error('Error merging documents:', error);
@@ -124,7 +152,7 @@ export class DocumentOptimizer {
             throw error;
         }
     }
-    
+
     /**
      * 删除空文档
      * @param docIds 要删除的文档ID列表
@@ -132,7 +160,7 @@ export class DocumentOptimizer {
     async deleteEmptyDocuments(docIds: string[]): Promise<void> {
         try {
             let deletedCount = 0;
-            
+
             for (const docId of docIds) {
                 const doc = await this.getDocumentInfo(docId);
                 if (doc) {
@@ -140,7 +168,7 @@ export class DocumentOptimizer {
                     deletedCount++;
                 }
             }
-            
+
             showMessage(`成功删除 ${deletedCount} 个空文档`);
         } catch (error) {
             console.error('Error deleting empty documents:', error);
@@ -148,17 +176,17 @@ export class DocumentOptimizer {
             throw error;
         }
     }
-    
+
     /**
      * 获取文档信息
      * @param docId 文档ID
      */
     private async getDocumentInfo(docId: string): Promise<DocumentInfo | null> {
         try {
-            const results = await sql(`SELECT id, content, hpath, box, path, updated, length(content) as size 
-                                      FROM blocks 
+            const results = await sql(`SELECT id, content, hpath, box, path, updated, length(content) as size
+                                      FROM blocks
                                       WHERE id = '${docId}' AND type = 'd'`);
-            
+
             if (results.length > 0) {
                 const result = results[0];
                 return {
@@ -171,14 +199,14 @@ export class DocumentOptimizer {
                     size: result.size
                 };
             }
-            
+
             return null;
         } catch (error) {
             console.error('Error getting document info:', error);
             return null;
         }
     }
-    
+
     /**
      * 验证文档是否可以安全删除
      * @param docId 文档ID
@@ -193,7 +221,7 @@ export class DocumentOptimizer {
             return false;
         }
     }
-    
+
     /**
      * 获取文档的引用统计
      * @param docId 文档ID

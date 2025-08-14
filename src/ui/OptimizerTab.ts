@@ -43,7 +43,7 @@ export class OptimizerTab {
                         </button>
                     </div>
                 </div>
-                
+
                 <div class="optimizer-tabs">
                     <div class="optimizer-tab-content">
                         <div class="optimizer-tab-panel" id="mergePanel">
@@ -53,7 +53,7 @@ export class OptimizerTab {
                             </div>
                             <div class="optimizer-content" id="mergeContent" style="display: none;"></div>
                         </div>
-                        
+
                         <div class="optimizer-tab-panel" id="deletePanel" style="display: none;">
                             <div class="optimizer-loading" id="deleteLoading">
                                 <svg class="fn__rotate"><use xlink:href="#iconLoading"></use></svg>
@@ -184,7 +184,7 @@ export class OptimizerTab {
                                         <a href="#" class="optimizer-doc-title" data-open-id="${doc.id}" title="${doc.hpath}">${doc.title}</a>
                                         <span class="optimizer-doc-path">${doc.hpath}</span>
                                         <span class="optimizer-doc-meta">
-                                            ${this.formatDate(doc.updated)}
+                                            ${this.formatDate(doc.updated)} | 子文档: ${doc.childCount ?? '-'} | 反链: ${doc.refCount ?? '-'} | 大小: ${this.formatBytes(doc.bytes)}
                                         </span>
                                     </span>
                                 </div>
@@ -194,6 +194,9 @@ export class OptimizerTab {
                                     </button>
                                     <button class="b3-button b3-button--primary fn__none" data-action="confirmMerge" data-group="${groupIndex}" data-doc="${docIndex}">
                                         ${this.i18n.mergeSelected}
+                                    </button>
+                                    <button class="b3-button b3-button--remove" data-action="deleteDoc" data-doc-id="${doc.id}">
+                                        ${this.i18n.delete}
                                     </button>
                                 </div>
                             </div>
@@ -285,6 +288,23 @@ export class OptimizerTab {
                 const target = e.currentTarget as HTMLElement;
                 const groupIndex = Number(target.getAttribute('data-group'));
                 if (Number.isNaN(groupIndex)) return;
+        // 删除单个文档（在合并列表中）
+        this.element.querySelectorAll('[data-action="deleteDoc"]').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = (e.currentTarget as HTMLElement).getAttribute('data-doc-id');
+                if (!id) return;
+                try {
+                    const doc = await this.optimizer['getDocumentInfo'](id);
+                    if (doc) {
+                        await (await import('../api')).removeDoc(doc.box, doc.path);
+                        this.loadMergePanel();
+                    }
+                } catch (err) {
+                    console.error('Delete doc failed:', err);
+                    (window as any).siyuan?.ws?.showMessage?.(this.i18n.deleteError.replace('${error}', err.message));
+                }
+            });
+        });
                 this.mergeGroup(groupIndex);
             });
         });
@@ -353,37 +373,14 @@ export class OptimizerTab {
             if (id && id !== mainDocId) selectedDocs.push(id);
         });
 
-        // 确认合并（Dialog）
-        const ele = document.createElement('div');
-        ele.textContent = this.i18n.confirmMerge;
-        confirmDialog({
-            title: this.i18n.mergeDuplicateDocs,
-            content: ele,
-            confirm: async () => {
-                try {
-                    const mergeBtn = group.querySelector('[data-action="confirmMerge"]') as HTMLButtonElement;
-                    if (mergeBtn) {
-                        mergeBtn.textContent = this.i18n.merging;
-                        mergeBtn.disabled = true;
-                    }
-                    await this.optimizer.mergeDocuments(mainDocId, selectedDocs);
-                    this.loadMergePanel();
-                } catch (error) {
-                    console.error('Merge failed:', error);
-                    (window as any).siyuan?.ws?.showMessage?.(this.i18n.mergeError.replace('${error}', error.message));
-                }
-            }
-        });
-
+        // 直接执行合并（无确认弹窗）
         try {
-            // 显示加载状态
-            const mergeBtn = group.querySelector('[data-action="merge"]') as HTMLButtonElement;
-            mergeBtn.textContent = this.i18n.merging;
-            mergeBtn.disabled = true;
-
+            const mergeBtn = group.querySelector('[data-action="confirmMerge"]') as HTMLButtonElement;
+            if (mergeBtn) {
+                mergeBtn.textContent = this.i18n.merging;
+                mergeBtn.disabled = true;
+            }
             await this.optimizer.mergeDocuments(mainDocId, selectedDocs);
-
-            // 刷新页面
             this.loadMergePanel();
         } catch (error) {
             console.error('Merge failed:', error);
@@ -460,6 +457,13 @@ export class OptimizerTab {
         }
         return String(updated ?? '');
     }
+    private formatBytes(n?: number): string {
+        const v = typeof n === 'number' ? n : 0;
+        if (v < 1024) return `${v}B`;
+        if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)}KB`;
+        return `${(v / (1024 * 1024)).toFixed(1)}MB`;
+    }
+
 
 
 
