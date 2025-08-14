@@ -77,33 +77,19 @@ export default class SiYuanOptimizer extends Plugin {
                 const container = this.element.querySelector('.optimizer-tab-container') as HTMLElement;
                 const defaultTab = (this.data && this.data.defaultTab) || 'merge';
                 new OptimizerTab(container, pluginI18n, defaultTab);
-            },
-            beforeDestroy: () => {
-                console.log("optimizer tab before destroy");
-            },
-            destroy: () => {
-                console.log("optimizer tab destroyed");
             }
         });
 
         // ready
     }
 
-    onLayoutReady() {
-        console.log(`frontend: ${getFrontend()}`);
-    }
-
-    async onunload() {
-        console.log(this.i18n.byePlugin);
-        showMessage("Goodbye SiYuan Optimizer");
-    }
-
-    private openOptimizerTab(defaultTab?: string) {
+    private openOptimizerTab(defaultTab?: 'merge' | 'delete') {
+        const title = defaultTab === 'delete' ? this.i18n.deleteEmptyDocs : this.i18n.mergeDuplicateDocs;
         const tab = openTab({
             app: this.app,
             custom: {
                 icon: "iconOptimizer",
-                title: this.i18n.addTopBarIcon,
+                title,
                 data: {
                     defaultTab: defaultTab || "merge"
                 },

@@ -19,12 +19,12 @@ export class OptimizerTab {
         this.defaultTab = defaultTab;
         this.init();
     }
-    
+
     private init() {
         this.element.innerHTML = this.getMainHTML();
         this.bindEvents();
     }
-    
+
     private getMainHTML(): string {
         return `
             <div class="optimizer-container">
@@ -77,7 +77,7 @@ export class OptimizerTab {
             </div>
         `;
     }
-    
+
     private bindEvents() {
         // 标签页切换
         this.element.querySelectorAll('.b3-tab-bar__tab').forEach(tab => {
@@ -87,17 +87,17 @@ export class OptimizerTab {
                 this.switchTab(tabType);
             });
         });
-        
+
         // 刷新按钮
         this.element.querySelector('#refreshBtn')?.addEventListener('click', () => {
             this.refresh();
         });
-        
+
         // 关闭按钮
         this.element.querySelector('#closeBtn')?.addEventListener('click', () => {
             this.close();
         });
-        
+
         // 根据默认标签初始化
         if (this.defaultTab === 'delete') {
             this.switchTab('delete');
@@ -105,19 +105,19 @@ export class OptimizerTab {
             this.switchTab('merge');
         }
     }
-    
+
     private switchTab(tabType: string) {
         // 更新标签页状态
         this.element.querySelectorAll('.b3-tab-bar__tab').forEach(tab => {
             tab.classList.remove('b3-tab-bar__tab--current');
         });
         this.element.querySelector(`[data-tab="${tabType}"]`)?.classList.add('b3-tab-bar__tab--current');
-        
+
         // 切换面板
         this.element.querySelectorAll('.optimizer-tab-panel').forEach(panel => {
             (panel as HTMLElement).style.display = 'none';
         });
-        
+
         if (tabType === 'merge') {
             (this.element.querySelector('#mergePanel') as HTMLElement).style.display = 'block';
             this.loadMergePanel();
@@ -126,20 +126,20 @@ export class OptimizerTab {
             this.loadDeletePanel();
         }
     }
-    
+
     private async loadMergePanel() {
         const loadingEl = this.element.querySelector('#mergeLoading') as HTMLElement;
         const contentEl = this.element.querySelector('#mergeContent') as HTMLElement;
-        
+
         loadingEl.style.display = 'block';
         contentEl.style.display = 'none';
-        
+
         try {
             const duplicateGroups = await this.optimizer.getDuplicateDocumentGroups();
-            
+
             loadingEl.style.display = 'none';
             contentEl.style.display = 'block';
-            
+
             if (duplicateGroups.length === 0) {
                 contentEl.innerHTML = `
                     <div class="optimizer-empty">
@@ -162,20 +162,20 @@ export class OptimizerTab {
             `;
         }
     }
-    
+
     private async loadDeletePanel() {
         const loadingEl = this.element.querySelector('#deleteLoading') as HTMLElement;
         const contentEl = this.element.querySelector('#deleteContent') as HTMLElement;
-        
+
         loadingEl.style.display = 'block';
         contentEl.style.display = 'none';
-        
+
         try {
             const emptyDocs = await this.optimizer.getEmptyDocuments();
-            
+
             loadingEl.style.display = 'none';
             contentEl.style.display = 'block';
-            
+
             if (emptyDocs.length === 0) {
                 contentEl.innerHTML = `
                     <div class="optimizer-empty">
@@ -198,14 +198,14 @@ export class OptimizerTab {
             `;
         }
     }
-    
+
     private getMergeContentHTML(groups: DuplicateGroup[]): string {
         let html = `
             <div class="optimizer-summary">
                 <p>${this.i18n.foundDuplicateDocs.replace('${count}', groups.length.toString())}</p>
             </div>
         `;
-        
+
         groups.forEach((group, groupIndex) => {
             html += `
                 <div class="optimizer-group" data-group="${groupIndex}">
@@ -216,114 +216,117 @@ export class OptimizerTab {
                     <div class="optimizer-group-content">
                         ${group.documents.map((doc, docIndex) => `
                             <div class="optimizer-doc-item" data-doc-id="${doc.id}">
-                                <label class="b3-form__label">
-                                    <input type="checkbox" class="b3-form__checkbox" data-group="${groupIndex}" data-doc="${docIndex}">
+                                <div class="optimizer-doc-body">
                                     <span class="optimizer-doc-info">
-                                        <span class="optimizer-doc-title">${doc.title}</span>
+                                        <a href="#" class="optimizer-doc-title" data-open-id="${doc.id}" title="${doc.hpath}">${doc.title}</a>
                                         <span class="optimizer-doc-path">${doc.hpath}</span>
                                         <span class="optimizer-doc-meta">
-                                            ${this.formatDate(doc.updated)} | ${this.formatSize(doc.size)}
+                                            ${this.formatDate(doc.updated)}
                                         </span>
                                     </span>
-                                </label>
-                                <button class="b3-button b3-button--small" data-action="setMain" data-group="${groupIndex}" data-doc="${docIndex}">
-                                    ${this.i18n.setAsMainDoc}
-                                </button>
+                                </div>
+                                <div class="optimizer-doc-actions">
+                                    <button class="b3-button b3-button--small" data-action="setMain" data-group="${groupIndex}" data-doc="${docIndex}">
+                                        ${this.i18n.setAsMainDoc}
+                                    </button>
+                                    <button class="b3-button b3-button--primary fn__none" data-action="confirmMerge" data-group="${groupIndex}" data-doc="${docIndex}">
+                                        ${this.i18n.mergeSelected}
+                                    </button>
+                                </div>
                             </div>
                         `).join('')}
-                    </div>
-                    <div class="optimizer-group-actions">
-                        <button class="b3-button b3-button--outline" data-action="selectAll" data-group="${groupIndex}">
-                            ${this.i18n.selectAll}
-                        </button>
-                        <button class="b3-button b3-button--outline" data-action="deselectAll" data-group="${groupIndex}">
-                            ${this.i18n.deselectAll}
-                        </button>
-                        <button class="b3-button b3-button--primary" data-action="merge" data-group="${groupIndex}">
-                            ${this.i18n.mergeSelected}
-                        </button>
                     </div>
                 </div>
             `;
         });
-        
+
         return html;
     }
-    
+
     private getDeleteContentHTML(docs: DocumentInfo[]): string {
         let html = `
             <div class="optimizer-summary">
                 <p>${this.i18n.foundEmptyDocs.replace('${count}', docs.length.toString())}</p>
             </div>
             <div class="optimizer-actions-bar">
-                <button class="b3-button b3-button--outline" id="selectAllEmpty">
-                    ${this.i18n.selectAll}
-                </button>
-                <button class="b3-button b3-button--outline" id="deselectAllEmpty">
-                    ${this.i18n.deselectAll}
-                </button>
                 <button class="b3-button b3-button--primary" id="deleteSelected">
                     ${this.i18n.deleteSelected}
                 </button>
             </div>
             <div class="optimizer-doc-list">
         `;
-        
-        docs.forEach((doc, index) => {
+
+        docs.forEach((doc) => {
             html += `
                 <div class="optimizer-doc-item" data-doc-id="${doc.id}">
-                    <label class="b3-form__label">
-                        <input type="checkbox" class="b3-form__checkbox empty-doc-checkbox" data-index="${index}">
+                    <div class="optimizer-doc-body">
                         <span class="optimizer-doc-info">
-                            <span class="optimizer-doc-title">${doc.title}</span>
+                            <a href="#" class="optimizer-doc-title" data-open-id="${doc.id}" title="${doc.hpath}">${doc.title}</a>
                             <span class="optimizer-doc-path">${doc.hpath}</span>
                             <span class="optimizer-doc-meta">
                                 ${this.formatDate(doc.updated)}
                             </span>
                         </span>
-                    </label>
+                    </div>
+                    <div class="optimizer-doc-actions">
+                        <input type="checkbox" class="b3-form__checkbox empty-doc-checkbox" data-id="${doc.id}">
+                    </div>
                 </div>
             `;
         });
-        
+
         html += '</div>';
         return html;
     }
-    
+
     private bindMergeEvents() {
-        // 设置主文档按钮
+        // 点击标题在侧边栏打开
+        this.element.querySelectorAll('.optimizer-doc-title').forEach(a => {
+            a.addEventListener('click', (e) => {
+                e.preventDefault();
+                const id = (e.currentTarget as HTMLElement).getAttribute('data-open-id');
+                if (!id) return;
+                // 右侧打开
+                (window as any).siyuan?.ws?.openTab?.({
+                    app: (window as any).siyuan?.app,
+                    doc: { id },
+                    position: 'right'
+                });
+            });
+        });
+
+        // 设置主文档 => 显示“确认合并”按钮，隐藏其他文档按钮
         this.element.querySelectorAll('[data-action="setMain"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const target = e.currentTarget as HTMLElement;
-                const groupIndex = target.getAttribute('data-group');
-                const docIndex = target.getAttribute('data-doc');
-                this.setMainDocument(parseInt(groupIndex), parseInt(docIndex));
+                const groupIndex = Number(target.getAttribute('data-group'));
+                const docIndex = Number(target.getAttribute('data-doc'));
+                if (Number.isNaN(groupIndex) || Number.isNaN(docIndex)) return;
+                this.setMainDocument(groupIndex, docIndex);
+                const group = this.element.querySelector(`[data-group="${groupIndex}"]`);
+                if (!group) return;
+                // 当前主文档显示确认按钮，其余文档隐藏按钮
+                group.querySelectorAll('.optimizer-doc-item').forEach((item, idx) => {
+                    const setBtn = item.querySelector('[data-action="setMain"]') as HTMLButtonElement;
+                    const confirmBtn = item.querySelector('[data-action="confirmMerge"]') as HTMLButtonElement;
+                    if (idx === docIndex) {
+                        setBtn.classList.add('fn__none');
+                        confirmBtn.classList.remove('fn__none');
+                    } else {
+                        setBtn.classList.add('fn__none');
+                        confirmBtn.classList.add('fn__none');
+                    }
+                });
             });
         });
 
-        // 全选/取消全选按钮
-        this.element.querySelectorAll('[data-action="selectAll"]').forEach(btn => {
+        // 确认合并（以当前主文档为目标，其他同名文档全部合并）
+        this.element.querySelectorAll('[data-action="confirmMerge"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const target = e.currentTarget as HTMLElement;
-                const groupIndex = target.getAttribute('data-group');
-                this.selectAllInGroup(parseInt(groupIndex), true);
-            });
-        });
-
-        this.element.querySelectorAll('[data-action="deselectAll"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const target = e.currentTarget as HTMLElement;
-                const groupIndex = target.getAttribute('data-group');
-                this.selectAllInGroup(parseInt(groupIndex), false);
-            });
-        });
-
-        // 合并按钮
-        this.element.querySelectorAll('[data-action="merge"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const target = e.currentTarget as HTMLElement;
-                const groupIndex = target.getAttribute('data-group');
-                this.mergeGroup(parseInt(groupIndex));
+                const groupIndex = Number(target.getAttribute('data-group'));
+                if (Number.isNaN(groupIndex)) return;
+                this.mergeGroup(groupIndex);
             });
         });
     }
@@ -383,27 +386,18 @@ export class OptimizerTab {
         const mainDocItem = group.querySelector('.optimizer-main-doc');
         if (!mainDocItem) {
             // 思源风格提示
-            window.siyuan?.ws?.showMessage?.('请先设置主文档');
+            showMessage('请先设置主文档');
             return;
         }
 
         const mainDocId = mainDocItem.getAttribute('data-doc-id');
 
-        // 获取选中的文档
+        // 不再需要选择：选中主文档后，其他同名文档全部合并
         const selectedDocs: string[] = [];
-        const checkboxes = group.querySelectorAll('input[type="checkbox"]:checked');
-        checkboxes.forEach(checkbox => {
-            const docItem = checkbox.closest('.optimizer-doc-item');
-            const docId = docItem?.getAttribute('data-doc-id');
-            if (docId && docId !== mainDocId) {
-                selectedDocs.push(docId);
-            }
+        group.querySelectorAll('.optimizer-doc-item').forEach(item => {
+            const id = item.getAttribute('data-doc-id');
+            if (id && id !== mainDocId) selectedDocs.push(id);
         });
-
-        if (selectedDocs.length === 0) {
-            window.siyuan?.ws?.showMessage?.('请选择要合并的文档');
-            return;
-        }
 
         // 确认合并（Dialog）
         const ele = document.createElement('div');
@@ -493,17 +487,30 @@ export class OptimizerTab {
             (window as any).siyuan?.ws?.showMessage?.(this.i18n.deleteError.replace('${error}', error.message));
         }
     }
-    
-    private formatDate(timestamp: number): string {
-        return new Date(timestamp).toLocaleString();
+
+    private formatDate(updated: number | string): string {
+        // 支持 14 位数：yyyyMMddHHmmss
+        const s = String(updated || '').trim();
+        if (/^\d{14}$/.test(s)) {
+            const y = s.slice(0,4), mo = s.slice(4,6), d = s.slice(6,8);
+            const h = s.slice(8,10), mi = s.slice(10,12), se = s.slice(12,14);
+            return `${y}-${mo}-${d} ${h}:${mi}:${se}`;
+        }
+        // 兜底：时间戳毫秒/秒
+        const n = Number(updated);
+        if (!Number.isNaN(n)) {
+            const ms = n > 1e12 ? n : n * 1000; // 如果是 10 位当秒
+            return new Date(ms).toLocaleString();
+        }
+        return String(updated ?? '');
     }
-    
+
     private formatSize(size: number): string {
         if (size < 1024) return `${size}B`;
         if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)}KB`;
         return `${(size / (1024 * 1024)).toFixed(1)}MB`;
     }
-    
+
     private refresh() {
         const currentTab = this.element.querySelector('.b3-tab-bar__tab--current')?.getAttribute('data-tab');
         if (currentTab === 'merge') {
@@ -512,7 +519,7 @@ export class OptimizerTab {
             this.loadDeletePanel();
         }
     }
-    
+
     private close() {
         // 关闭页签的逻辑会在主插件中实现
         this.element.dispatchEvent(new CustomEvent('close-tab'));

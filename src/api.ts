@@ -461,7 +461,7 @@ export async function findEmptyDocuments(): Promise<any[]> {
         FROM blocks b
         WHERE b.type = 'd'
           AND NOT EXISTS (
-              SELECT 1 FROM blocks c WHERE c.root_id = b.id AND c.type != 'd'
+              SELECT 1 FROM blocks c WHERE c.root_id = b.id AND c.type != 'd' AND c.markdown != ''
           )
         ORDER BY b.updated DESC`;
     return await sql(sqlScript);
