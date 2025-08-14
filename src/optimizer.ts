@@ -71,24 +71,12 @@ export class DocumentOptimizer {
                 });
             }
 
-            // 填充反链与子文档统计
+            // 填充反链统计（取消大小与子文档计算）
             for (const group of groups) {
                 for (const doc of group.documents) {
                     try {
-                        // 反链数
                         const refs = await getDocumentReferences(doc.id);
                         doc.refCount = Array.isArray(refs) ? refs.length : 0;
-                    } catch {}
-                    try {
-                        // 子文档数量：根据 path 前缀统计 .sy 文件数量
-                        const likePrefix = doc.path.replace(/"/g, '""').replace(/%/g, '\%').replace(/_/g, '\_');
-                        const childRows = await sql(`SELECT COUNT(1) AS cnt FROM blocks WHERE box='${doc.box}' AND path LIKE '${likePrefix}/%' AND type='d'`);
-                        doc.childCount = childRows?.[0]?.cnt ?? 0;
-                    } catch {}
-                    try {
-                        // 近似大小：以 markdown 长度作为字节估计
-                        const statRows = await sql(`SELECT COALESCE(SUM(LENGTH(markdown)),0) AS bytes FROM blocks WHERE root_id='${doc.id}' AND type!='d'`);
-                        doc.bytes = statRows?.[0]?.bytes ?? 0;
                     } catch {}
                 }
             }

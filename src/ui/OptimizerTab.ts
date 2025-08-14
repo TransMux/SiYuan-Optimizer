@@ -184,7 +184,7 @@ export class OptimizerTab {
                                         <a href="#" class="optimizer-doc-title" data-open-id="${doc.id}" title="${doc.hpath}">${doc.title}</a>
                                         <span class="optimizer-doc-path">${doc.hpath}</span>
                                         <span class="optimizer-doc-meta">
-                                            ${this.formatDate(doc.updated)} | 子文档: ${doc.childCount ?? '-'} | 反链: ${doc.refCount ?? '-'} | 大小: ${this.formatBytes(doc.bytes)}
+                                            ${this.formatDate(doc.updated)} | 反链: ${doc.refCount ?? '-'}
                                         </span>
                                     </span>
                                 </div>
@@ -457,12 +457,7 @@ export class OptimizerTab {
         }
         return String(updated ?? '');
     }
-    private formatBytes(n?: number): string {
-        const v = typeof n === 'number' ? n : 0;
-        if (v < 1024) return `${v}B`;
-        if (v < 1024 * 1024) return `${(v / 1024).toFixed(1)}KB`;
-        return `${(v / (1024 * 1024)).toFixed(1)}MB`;
-    }
+
 
 
 
