@@ -37,7 +37,7 @@
     "deleteError": "删除失败：${error}",
     "confirmMerge": "确认合并选中的文档？此操作不可撤销。",
     "confirmDelete": "确认删除选中的空文档？此操作不可撤销。",
-    "docTitle": "文档标题",
+    "docTitle": "文档",
     "docPath": "文档路径",
     "docSize": "文档大小",
     "lastModified": "最后修改",

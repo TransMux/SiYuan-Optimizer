@@ -31,7 +31,7 @@ export class OptimizerTab {
         return `
             <div class="optimizer-container">
                 <div class="optimizer-header">
-                    <h2>${this.i18n.addTopBarIcon}</h2>
+                    <h2>${this.defaultTab === 'delete' ? this.i18n.deleteEmptyDocs : this.i18n.mergeDuplicateDocs}</h2>
                     <div class="optimizer-actions">
                         <button class="b3-button b3-button--outline" id="refreshBtn">
                             <svg><use xlink:href="#iconRefresh"></use></svg>
@@ -45,19 +45,6 @@ export class OptimizerTab {
                 </div>
                 
                 <div class="optimizer-tabs">
-                    <div class="b3-tab-bar">
-                        <div class="b3-tab-bar__space"></div>
-                        <div class="b3-tab-bar__tab b3-tab-bar__tab--current" data-tab="merge">
-                            <svg><use xlink:href="#iconCombine"></use></svg>
-                            ${this.i18n.mergeDuplicateDocs}
-                        </div>
-                        <div class="b3-tab-bar__tab" data-tab="delete">
-                            <svg><use xlink:href="#iconTrashcan"></use></svg>
-                            ${this.i18n.deleteEmptyDocs}
-                        </div>
-                        <div class="b3-tab-bar__space"></div>
-                    </div>
-                    
                     <div class="optimizer-tab-content">
                         <div class="optimizer-tab-panel" id="mergePanel">
                             <div class="optimizer-loading" id="mergeLoading">
@@ -81,14 +68,7 @@ export class OptimizerTab {
     }
 
     private bindEvents() {
-        // 标签页切换
-        this.element.querySelectorAll('.b3-tab-bar__tab').forEach(tab => {
-            tab.addEventListener('click', (e) => {
-                const target = e.currentTarget as HTMLElement;
-                const tabType = target.getAttribute('data-tab');
-                this.switchTab(tabType);
-            });
-        });
+
 
         // 刷新按钮
         this.element.querySelector('#refreshBtn')?.addEventListener('click', () => {
@@ -100,34 +80,15 @@ export class OptimizerTab {
             this.close();
         });
 
-        // 根据默认标签初始化
+        // 根据默认标签初始化（无 Tab 栏，直接按默认加载一次）
         if (this.defaultTab === 'delete') {
-            this.switchTab('delete');
-        } else {
-            this.switchTab('merge');
-        }
-    }
-
-    private switchTab(tabType: string) {
-        // 更新标签页状态
-        this.element.querySelectorAll('.b3-tab-bar__tab').forEach(tab => {
-            tab.classList.remove('b3-tab-bar__tab--current');
-        });
-        this.element.querySelector(`[data-tab="${tabType}"]`)?.classList.add('b3-tab-bar__tab--current');
-
-        // 切换面板
-        this.element.querySelectorAll('.optimizer-tab-panel').forEach(panel => {
-            (panel as HTMLElement).style.display = 'none';
-        });
-
-        if (tabType === 'merge') {
-            (this.element.querySelector('#mergePanel') as HTMLElement).style.display = 'block';
-            this.loadMergePanel();
-        } else if (tabType === 'delete') {
-            (this.element.querySelector('#deletePanel') as HTMLElement).style.display = 'block';
             this.loadDeletePanel();
+        } else {
+            this.loadMergePanel();
         }
     }
+
+
 
     private async loadMergePanel() {
         const loadingEl = this.element.querySelector('#mergeLoading') as HTMLElement;
@@ -228,7 +189,7 @@ export class OptimizerTab {
                                     </span>
                                 </div>
                                 <div class="optimizer-doc-actions">
-                                    <button class="b3-button b3-button--small" data-action="setMain" data-group="${groupIndex}" data-doc="${docIndex}">
+                                    <button class="b3-button" data-action="setMain" data-group="${groupIndex}" data-doc="${docIndex}">
                                         ${this.i18n.setAsMainDoc}
                                     </button>
                                     <button class="b3-button b3-button--primary fn__none" data-action="confirmMerge" data-group="${groupIndex}" data-doc="${docIndex}">
