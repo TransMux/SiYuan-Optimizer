@@ -12,6 +12,12 @@ export class OptimizerTab {
     private i18n: any;
     private defaultTab: 'merge' | 'delete';
     private app: any;
+    // 缓存与状态
+    private duplicateGroupsCache: DuplicateGroup[] = [];
+    private emptyDocsCache: DocumentInfo[] = [];
+    private excludeUntitled: boolean = false;
+    private hideBacklinkedInEmpty: boolean = false;
+    private previewEditors: Map<string, any> = new Map();
 
     constructor(element: HTMLElement, i18n: any, defaultTab: 'merge' | 'delete' = 'merge', app?: any) {
         this.element = element;
@@ -104,12 +110,16 @@ export class OptimizerTab {
         contentEl.style.display = 'none';
 
         try {
+            // 进入前销毁所有预览，避免泄漏
+            this.destroyAllPreviews();
             const duplicateGroups = await this.optimizer.getDuplicateDocumentGroups();
+            this.duplicateGroupsCache = duplicateGroups;
 
             loadingEl.style.display = 'none';
             contentEl.style.display = 'block';
 
-            if (duplicateGroups.length === 0) {
+            const displayGroups = this.applyMergeFilters(this.duplicateGroupsCache);
+            if (displayGroups.length === 0) {
                 contentEl.innerHTML = `
                     <div class="optimizer-empty">
                         <svg><use xlink:href="#iconInfo"></use></svg>
@@ -117,7 +127,7 @@ export class OptimizerTab {
                     </div>
                 `;
             } else {
-                contentEl.innerHTML = this.getMergeContentHTML(duplicateGroups);
+                contentEl.innerHTML = this.getMergeContentHTML(displayGroups);
                 this.bindMergeEvents();
             }
         } catch (error) {
@@ -140,12 +150,16 @@ export class OptimizerTab {
         contentEl.style.display = 'none';
 
         try {
+            // 进入前销毁所有预览，避免泄漏
+            this.destroyAllPreviews();
             const emptyDocs = await this.optimizer.getEmptyDocuments();
+            this.emptyDocsCache = emptyDocs;
 
             loadingEl.style.display = 'none';
             contentEl.style.display = 'block';
 
-            if (emptyDocs.length === 0) {
+            const displayDocs = this.applyDeleteFilters(this.emptyDocsCache);
+            if (displayDocs.length === 0) {
                 contentEl.innerHTML = `
                     <div class="optimizer-empty">
                         <svg><use xlink:href="#iconInfo"></use></svg>
@@ -153,7 +167,7 @@ export class OptimizerTab {
                     </div>
                 `;
             } else {
-                contentEl.innerHTML = this.getDeleteContentHTML(emptyDocs);
+                contentEl.innerHTML = this.getDeleteContentHTML(displayDocs);
                 this.bindDeleteEvents();
             }
         } catch (error) {
@@ -172,6 +186,10 @@ export class OptimizerTab {
         let html = `
             <div class="optimizer-summary">
                 <p>${this.i18n.foundDuplicateDocs.replace('${count}', groups.length.toString())}</p>
+                <label class="b3-form__checkbox" style="margin-left: 8px;">
+                    <input type="checkbox" id="excludeUntitledToggle" ${this.excludeUntitled ? 'checked' : ''}>
+                    ${this.i18n.excludeUntitled || '排除未命名文档'}
+                </label>
             </div>
         `;
 
@@ -201,10 +219,14 @@ export class OptimizerTab {
                                     <button class="b3-button" data-action="setMain" data-group="${groupIndex}" data-doc="${docIndex}">
                                         ${this.i18n.setAsMainDoc}
                                     </button>
+                                    <button class="b3-button" data-action="previewDoc" data-doc-id="${doc.id}" style="display: none;">
+                                        ${this.i18n.preview || '预览'}
+                                    </button>
                                     <button class="b3-button b3-button--remove" data-action="deleteDoc" data-doc-id="${doc.id}" data-box="${doc.box}" data-path="${doc.path}">
                                         ${this.i18n.delete}
                                     </button>
                                 </div>
+                                <div class="optimizer-preview fn__flex-1" style="margin-top: 4px; display: none;"></div>
                             </div>
                         `).join('')}
                     </div>
@@ -224,6 +246,10 @@ export class OptimizerTab {
                 <button class="b3-button b3-button--primary" id="deleteSelected">
                     ${this.i18n.deleteSelected}
                 </button>
+                <label class="b3-form__checkbox" style="margin-left: 8px;">
+                    <input type="checkbox" id="hideBacklinkedToggle" ${this.hideBacklinkedInEmpty ? 'checked' : ''}>
+                    ${this.i18n.hideBacklinked || '过滤掉有反链的文档'}
+                </label>
             </div>
             <div class="optimizer-doc-list">
         `;
@@ -236,13 +262,15 @@ export class OptimizerTab {
                             <a href="#" class="optimizer-doc-title" data-open-id="${doc.id}" title="${doc.hpath}">${doc.title}</a>
                             <span class="optimizer-doc-path">${doc.hpath}</span>
                             <span class="optimizer-doc-meta">
-                                ${this.formatDate(doc.updated)}
+                                ${this.formatDate(doc.updated)} | 反链: ${doc.refCount ?? '-'}
                             </span>
                         </span>
                     </div>
                     <div class="optimizer-doc-actions">
+                        <button class="b3-button" data-action="previewDoc" data-doc-id="${doc.id}" style="display: none;">${this.i18n.preview || '预览'}</button>
                         <input type="checkbox" class="b3-form__checkbox empty-doc-checkbox" data-id="${doc.id}">
                     </div>
+                    <div class="optimizer-preview fn__flex-1" style="margin-top: 4px; display: none;"></div>
                 </div>
             `;
         });
@@ -262,6 +290,15 @@ export class OptimizerTab {
                 this.element.dispatchEvent(new CustomEvent('optimizer-open-doc', { detail: { id, position: 'right' } }));
             });
         });
+
+        // 过滤未命名
+        const excludeEl = this.element.querySelector('#excludeUntitledToggle') as HTMLInputElement | null;
+        if (excludeEl) {
+            excludeEl.addEventListener('change', () => {
+                this.excludeUntitled = !!excludeEl.checked;
+                this.renderMergeContentFromCache();
+            });
+        }
 
         // 设置主文档 => 显示“确认合并”按钮，隐藏其他文档按钮
         this.element.querySelectorAll('[data-action="setMain"]').forEach(btn => {
@@ -335,6 +372,18 @@ export class OptimizerTab {
             });
         });
 
+        // 预览文档
+        this.element.querySelectorAll('[data-action="previewDoc"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget as HTMLElement;
+                const docId = target.getAttribute('data-doc-id');
+                if (!docId) return;
+                const item = target.closest('.optimizer-doc-item');
+                if (!item) return;
+                this.togglePreviewForDoc(docId, item);
+            });
+        });
+
         // 删除单个文档（事件委托，避免绑定错位导致无效）
         this.element.addEventListener('click', async (e) => {
             const btn = (e.target as HTMLElement).closest('[data-action="deleteDoc"]') as HTMLElement | null;
@@ -381,6 +430,27 @@ export class OptimizerTab {
                 const id = (e.currentTarget as HTMLElement).getAttribute('data-open-id');
                 if (!id) return;
                 this.element.dispatchEvent(new CustomEvent('optimizer-open-doc', { detail: { id, position: 'right' } }));
+            });
+        });
+
+        // 过滤掉有反链的文档
+        const hideBacklinkedEl = this.element.querySelector('#hideBacklinkedToggle') as HTMLInputElement | null;
+        if (hideBacklinkedEl) {
+            hideBacklinkedEl.addEventListener('change', () => {
+                this.hideBacklinkedInEmpty = !!hideBacklinkedEl.checked;
+                this.renderDeleteContentFromCache();
+            });
+        }
+
+        // 预览文档
+        this.element.querySelectorAll('[data-action="previewDoc"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const target = e.currentTarget as HTMLElement;
+                const docId = target.getAttribute('data-doc-id');
+                if (!docId) return;
+                const item = target.closest('.optimizer-doc-item');
+                if (!item) return;
+                this.togglePreviewForDoc(docId, item);
             });
         });
 
@@ -567,5 +637,98 @@ export class OptimizerTab {
     private close() {
         // 关闭页签的逻辑会在主插件中实现
         this.element.dispatchEvent(new CustomEvent('close-tab'));
+    }
+
+    // 工具：应用过滤
+    private applyMergeFilters(groups: DuplicateGroup[]): DuplicateGroup[] {
+        if (!this.excludeUntitled) return groups;
+        const untitled = ((window as any)?.siyuan?.languages?._kernel[16] ?? 'Untitled').trim();
+        return groups.filter(g => (g.title || '').trim() !== untitled);
+    }
+
+    private applyDeleteFilters(docs: DocumentInfo[]): DocumentInfo[] {
+        if (!this.hideBacklinkedInEmpty) return docs;
+        return docs.filter(d => (d.refCount ?? 0) === 0);
+    }
+
+    private renderMergeContentFromCache() {
+        const contentEl = this.element.querySelector('#mergeContent') as HTMLElement;
+        if (!contentEl) return;
+        const displayGroups = this.applyMergeFilters(this.duplicateGroupsCache);
+        if (displayGroups.length === 0) {
+            contentEl.innerHTML = `
+                <div class="optimizer-empty">
+                    <svg><use xlink:href="#iconInfo"></use></svg>
+                    <p>${this.i18n.noDuplicateDocsFound}</p>
+                </div>
+            `;
+            return;
+        }
+        contentEl.innerHTML = this.getMergeContentHTML(displayGroups);
+        this.bindMergeEvents();
+    }
+
+    private renderDeleteContentFromCache() {
+        const contentEl = this.element.querySelector('#deleteContent') as HTMLElement;
+        if (!contentEl) return;
+        const displayDocs = this.applyDeleteFilters(this.emptyDocsCache);
+        if (displayDocs.length === 0) {
+            contentEl.innerHTML = `
+                <div class="optimizer-empty">
+                    <svg><use xlink:href="#iconInfo"></use></svg>
+                    <p>${this.i18n.noEmptyDocsFound}</p>
+                </div>
+            `;
+            return;
+        }
+        contentEl.innerHTML = this.getDeleteContentHTML(displayDocs);
+        this.bindDeleteEvents();
+    }
+
+    private togglePreviewForDoc(docId: string, itemEl: Element) {
+        const previewEl = itemEl.querySelector('.optimizer-preview') as HTMLElement | null;
+        if (!previewEl) return;
+        const isVisible = previewEl.style.display !== 'none';
+        if (isVisible) {
+            // 关闭并销毁
+            const editor = this.previewEditors.get(docId);
+            try { editor?.destroy?.(); } catch {}
+            this.previewEditors.delete(docId);
+            previewEl.style.display = 'none';
+            previewEl.innerHTML = '';
+            return;
+        }
+        // 打开预览
+        previewEl.style.display = 'block';
+        const ProtyleCtor = (window as any).Protyle;
+        if (!ProtyleCtor || !this.app) {
+            // 回退：使用右侧打开
+            this.element.dispatchEvent(new CustomEvent('optimizer-open-doc', { detail: { id: docId, position: 'right' } }));
+            return;
+        }
+        try {
+            const editor = new ProtyleCtor(this.app, previewEl, {
+                blockId: docId,
+                rootId: docId,
+                mode: 'wysiwyg',
+                action: [],
+                render: { title: false, background: false, scroll: true },
+            });
+            this.previewEditors.set(docId, editor);
+        } catch (e) {
+            console.warn('Protyle preview failed, fallback to open tab', e);
+            this.element.dispatchEvent(new CustomEvent('optimizer-open-doc', { detail: { id: docId, position: 'right' } }));
+        }
+    }
+
+    private destroyAllPreviews() {
+        this.previewEditors.forEach((ed) => {
+            try { ed?.destroy?.(); } catch {}
+        });
+        this.previewEditors.clear();
+        this.element.querySelectorAll('.optimizer-preview').forEach(el => {
+            (el as HTMLElement).style.display = 'none';
+            (el as HTMLElement).innerHTML = '';
+        });
     }
 }

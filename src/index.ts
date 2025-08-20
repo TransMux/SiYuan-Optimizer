@@ -76,7 +76,8 @@ export default class SiYuanOptimizer extends Plugin {
                 this.element.innerHTML = '<div class="optimizer-tab-container"></div>';
                 const container = this.element.querySelector('.optimizer-tab-container') as HTMLElement;
                 const defaultTab = (this.data && this.data.defaultTab) || 'merge';
-                new OptimizerTab(container, pluginI18n, defaultTab);
+                // 传入 app 以便在自定义页签内使用 Protyle 进行文档预览
+                new OptimizerTab(container, pluginI18n, defaultTab, (this as any).app);
                 // 监听 UI 请求打开文档事件，统一用插件 openTab 打开
                 container.addEventListener('optimizer-open-doc', (evt: any) => {
                     const { id, position } = evt.detail || {};

@@ -95,15 +95,26 @@ export class DocumentOptimizer {
     async getEmptyDocuments(): Promise<DocumentInfo[]> {
         try {
             const results = await findEmptyDocuments();
-            return results.map(result => ({
+            const docs: DocumentInfo[] = results.map(result => ({
                 id: result.id,
                 title: result.content,
                 hpath: result.hpath,
                 box: result.box,
                 path: result.path,
                 updated: result.updated,
-                size: 0
+                size: 0,
+                refCount: 0,
             }));
+
+            // 填充反链统计，供 UI 过滤使用
+            for (const doc of docs) {
+                try {
+                    const refs = await getDocumentReferences(doc.id);
+                    doc.refCount = Array.isArray(refs) ? refs.length : 0;
+                } catch {}
+            }
+
+            return docs;
         } catch (error) {
             console.error('Error getting empty documents:', error);
             throw error;
