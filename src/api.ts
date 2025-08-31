@@ -380,11 +380,24 @@ export async function removeFile(path: string) {
 
 
 
-export async function readDir(path: string): Promise<IResReadDir> {
+export async function readDir(path: string): Promise<IResReadDir[]> {
     let data = {
         path: path
     }
     let url = '/api/file/readDir';
+    return request(url, data);
+}
+
+/**
+ * 列出指定路径下的文档
+ */
+export async function listDocsByPath(notebook: NotebookId, path: string, sort: number = 0): Promise<IResListDocsByPath> {
+    let data = {
+        notebook: notebook,
+        path: path,
+        sort: sort
+    }
+    let url = '/api/filetree/listDocsByPath';
     return request(url, data);
 }
 

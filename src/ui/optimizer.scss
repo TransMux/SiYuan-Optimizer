@@ -1,5 +1,150 @@
 /* 优化器样式 */
 
+/* 文件清理相关样式 */
+.optimizer-cleanup-settings {
+    padding: 16px;
+    background: var(--b3-theme-surface);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    
+    .b3-form__group {
+        margin-bottom: 16px;
+        
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+    
+    .b3-label {
+        display: block;
+        margin-bottom: 4px;
+        font-weight: 500;
+        color: var(--b3-theme-on-surface);
+    }
+    
+    .b3-select, .b3-text-field {
+        width: 100%;
+        max-width: 300px;
+    }
+}
+
+.optimizer-cleanup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--b3-theme-surface);
+    border-radius: 8px;
+    margin-bottom: 16px;
+}
+
+.optimizer-stats {
+    display: flex;
+    gap: 24px;
+    
+    .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        
+        .stat-label {
+            font-size: 12px;
+            color: var(--b3-theme-on-surface-light);
+            margin-bottom: 4px;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--b3-theme-on-surface);
+        }
+    }
+}
+
+.optimizer-cleanup-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.optimizer-cleanup-group {
+    background: var(--b3-theme-surface);
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--b3-theme-surface-lighter);
+}
+
+.group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px;
+    background: var(--b3-theme-surface-light);
+    border-bottom: 1px solid var(--b3-theme-surface-lighter);
+    
+    h4 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--b3-theme-on-surface);
+    }
+    
+    .group-info {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: var(--b3-theme-on-surface-light);
+    }
+}
+
+.group-files {
+    padding: 0;
+}
+
+.cleanup-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--b3-theme-surface-lighter);
+    
+    &:last-child {
+        border-bottom: none;
+    }
+    
+    &:hover {
+        background: var(--b3-theme-surface-light);
+    }
+}
+
+.file-info {
+    flex: 1;
+    
+    .file-name {
+        font-weight: 500;
+        color: var(--b3-theme-on-surface);
+        margin-bottom: 4px;
+    }
+    
+    .file-path {
+        font-size: 12px;
+        color: var(--b3-theme-on-surface-light);
+        margin-bottom: 4px;
+    }
+    
+    .file-meta {
+        font-size: 11px;
+        color: var(--b3-theme-on-surface-light);
+        display: flex;
+        gap: 12px;
+    }
+}
+
+.file-actions {
+    display: flex;
+    gap: 8px;
+}
+
 .optimizer-container {
     height: 100%;
     display: flex;

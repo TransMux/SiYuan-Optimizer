@@ -11,6 +11,7 @@ import {
     sql,
     getDocumentReferences
 } from './api';
+import { DuplicateFileCleaner, CleanupOptions, DuplicateFileGroup } from './duplicate-cleaner';
 import { showMessage } from 'siyuan';
 
 export interface DocumentInfo {
@@ -34,6 +35,18 @@ export interface DuplicateGroup {
 }
 
 export class DocumentOptimizer {
+    private duplicateFileCleaner: DuplicateFileCleaner;
+
+    constructor() {
+        this.duplicateFileCleaner = new DuplicateFileCleaner();
+    }
+
+    /**
+     * 初始化优化器
+     */
+    async initialize(): Promise<void> {
+        await this.duplicateFileCleaner.initialize();
+    }
 
     /**
      * 获取所有同名文档组
@@ -233,5 +246,53 @@ export class DocumentOptimizer {
             console.error('Error getting document reference count:', error);
             return 0;
         }
+    }
+
+    // **************************************** 重复文件清理功能 ****************************************
+
+    /**
+     * 扫描指定文件夹下的重复文件
+     * @param notebook 笔记本ID
+     * @param folderPath 文件夹路径
+     * @param options 清理选项
+     */
+    async scanDuplicateFiles(
+        notebook: string, 
+        folderPath: string, 
+        options: CleanupOptions
+    ): Promise<DuplicateFileGroup[]> {
+        return await this.duplicateFileCleaner.scanDuplicateFiles(notebook, folderPath, options);
+    }
+
+    /**
+     * 清理重复文件
+     * @param duplicateGroups 重复文件组
+     * @param options 清理选项
+     */
+    async cleanupDuplicateFiles(
+        duplicateGroups: DuplicateFileGroup[], 
+        options: CleanupOptions
+    ): Promise<number> {
+        return await this.duplicateFileCleaner.cleanupDuplicateFiles(duplicateGroups, options);
+    }
+
+    /**
+     * 获取文件夹扫描统计信息
+     * @param notebook 笔记本ID
+     * @param folderPath 文件夹路径
+     * @param options 清理选项
+     */
+    async getFileScanStatistics(
+        notebook: string, 
+        folderPath: string, 
+        options: CleanupOptions
+    ): Promise<{
+        totalFiles: number;
+        totalSize: number;
+        duplicateGroups: number;
+        duplicateFiles: number;
+        potentialSavings: number;
+    }> {
+        return await this.duplicateFileCleaner.getScanStatistics(notebook, folderPath, options);
     }
 }

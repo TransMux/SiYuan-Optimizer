@@ -3,6 +3,7 @@
  */
 
 import { DocumentOptimizer, DuplicateGroup, DocumentInfo } from '../optimizer';
+import { DuplicateFileGroup, CleanupOptions } from '../duplicate-cleaner';
 import { showMessage } from 'siyuan';
 import { confirmDialog } from '../libs/dialog';
 
@@ -10,16 +11,29 @@ export class OptimizerTab {
     private element: HTMLElement;
     private optimizer: DocumentOptimizer;
     private i18n: any;
-    private defaultTab: 'merge' | 'delete';
+    private defaultTab: 'merge' | 'delete' | 'cleanup';
     private app: any;
     // 缓存与状态
     private duplicateGroupsCache: DuplicateGroup[] = [];
     private emptyDocsCache: DocumentInfo[] = [];
+    private duplicateFilesCache: DuplicateFileGroup[] = [];
     private excludeUntitled: boolean = false;
     private hideBacklinkedInEmpty: boolean = false;
     private previewEditors: Map<string, any> = new Map();
+    
+    // 文件清理相关状态
+    private currentNotebook: string = '';
+    private currentPath: string = '';
+    private cleanupOptions: CleanupOptions = {
+        duplicateType: 'name',
+        keepStrategy: 'newest',
+        recursive: true,
+        minFileSize: 0,
+        ignoreExtensions: [],
+        confirmBeforeDelete: true
+    };
 
-    constructor(element: HTMLElement, i18n: any, defaultTab: 'merge' | 'delete' = 'merge', app?: any) {
+    constructor(element: HTMLElement, i18n: any, defaultTab: 'merge' | 'delete' | 'cleanup' = 'merge', app?: any) {
         this.element = element;
         this.optimizer = new DocumentOptimizer();
         this.i18n = i18n;
@@ -28,8 +42,9 @@ export class OptimizerTab {
         this.init();
     }
 
-    private init() {
+    private async init() {
         this.element.innerHTML = this.getMainHTML();
+        await this.optimizer.initialize();
         this.bindEvents();
     }
 
@@ -37,7 +52,8 @@ export class OptimizerTab {
         return `
             <div class="optimizer-container">
                 <div class="optimizer-header">
-                    <h2>${this.defaultTab === 'delete' ? this.i18n.deleteEmptyDocs : this.i18n.mergeDuplicateDocs}</h2>
+                    <h2>${this.defaultTab === 'delete' ? this.i18n.deleteEmptyDocs : 
+                         this.defaultTab === 'cleanup' ? '清理重复文件' : this.i18n.mergeDuplicateDocs}</h2>
                     <div class="optimizer-actions">
                         <button class="b3-button b3-button--outline" id="refreshBtn">
                             <svg><use xlink:href="#iconRefresh"></use></svg>
@@ -67,6 +83,69 @@ export class OptimizerTab {
                             </div>
                             <div class="optimizer-content" id="deleteContent" style="display: none;"></div>
                         </div>
+
+                        <div class="optimizer-tab-panel" id="cleanupPanel" style="display: none;">
+                            <div class="optimizer-cleanup-settings" id="cleanupSettings">
+                                <div class="b3-form__group">
+                                    <label class="b3-label">
+                                        笔记本选择
+                                        <select class="b3-select fn__size200" id="notebookSelect">
+                                            <option value="">请选择笔记本</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="b3-form__group">
+                                    <label class="b3-label">
+                                        文件夹路径
+                                        <input class="b3-text-field fn__size200" id="folderPath" placeholder="/path/to/folder" value="/">
+                                    </label>
+                                </div>
+                                <div class="b3-form__group">
+                                    <label class="b3-label">
+                                        重复检测类型
+                                        <select class="b3-select fn__size200" id="duplicateType">
+                                            <option value="name">文件名</option>
+                                            <option value="content">文件内容</option>
+                                            <option value="hash">文件哈希</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="b3-form__group">
+                                    <label class="b3-label">
+                                        保留策略
+                                        <select class="b3-select fn__size200" id="keepStrategy">
+                                            <option value="newest">最新文件</option>
+                                            <option value="oldest">最旧文件</option>
+                                            <option value="largest">最大文件</option>
+                                            <option value="smallest">最小文件</option>
+                                        </select>
+                                    </label>
+                                </div>
+                                <div class="b3-form__group">
+                                    <label class="b3-label">
+                                        <input type="checkbox" class="b3-switch" id="recursive" checked>
+                                        递归子文件夹
+                                    </label>
+                                </div>
+                                <div class="b3-form__group">
+                                    <label class="b3-label">
+                                        <input type="checkbox" class="b3-switch" id="confirmBeforeDelete" checked>
+                                        删除前确认
+                                    </label>
+                                </div>
+                                <div class="b3-form__group">
+                                    <button class="b3-button b3-button--primary" id="scanFilesBtn">
+                                        <svg><use xlink:href="#iconSearch"></use></svg>
+                                        扫描重复文件
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="optimizer-loading" id="cleanupLoading" style="display: none;">
+                                <svg class="fn__rotate"><use xlink:href="#iconLoading"></use></svg>
+                                正在扫描文件...
+                            </div>
+                            <div class="optimizer-content" id="cleanupContent" style="display: none;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -89,15 +168,27 @@ export class OptimizerTab {
         // 根据默认标签初始化（无 Tab 栏，切换对应面板可见性后再加载一次）
         const mergePanel = this.element.querySelector('#mergePanel') as HTMLElement;
         const deletePanel = this.element.querySelector('#deletePanel') as HTMLElement;
+        const cleanupPanel = this.element.querySelector('#cleanupPanel') as HTMLElement;
+        
         if (this.defaultTab === 'delete') {
             if (mergePanel) mergePanel.style.display = 'none';
             if (deletePanel) deletePanel.style.display = 'block';
+            if (cleanupPanel) cleanupPanel.style.display = 'none';
             this.loadDeletePanel();
+        } else if (this.defaultTab === 'cleanup') {
+            if (mergePanel) mergePanel.style.display = 'none';
+            if (deletePanel) deletePanel.style.display = 'none';
+            if (cleanupPanel) cleanupPanel.style.display = 'block';
+            this.loadCleanupPanel();
         } else {
             if (mergePanel) mergePanel.style.display = 'block';
             if (deletePanel) deletePanel.style.display = 'none';
+            if (cleanupPanel) cleanupPanel.style.display = 'none';
             this.loadMergePanel();
         }
+        
+        // 绑定文件清理相关事件
+        this.bindCleanupEvents();
     }
 
 
@@ -730,5 +821,365 @@ export class OptimizerTab {
             (el as HTMLElement).style.display = 'none';
             (el as HTMLElement).innerHTML = '';
         });
+    }
+
+    // **************************************** 文件清理相关方法 ****************************************
+
+    private async loadCleanupPanel() {
+        await this.loadNotebooks();
+    }
+
+    private async loadNotebooks() {
+        try {
+            const notebookSelect = this.element.querySelector('#notebookSelect') as HTMLSelectElement;
+            if (!notebookSelect) return;
+
+            // 使用 API 获取笔记本列表
+            const { lsNotebooks } = await import('../api');
+            const result = await lsNotebooks();
+            const notebooks = result.notebooks || [];
+            
+            notebookSelect.innerHTML = '<option value="">请选择笔记本</option>';
+            
+            notebooks.forEach((notebook: any) => {
+                const option = document.createElement('option');
+                option.value = notebook.id;
+                option.textContent = notebook.name;
+                notebookSelect.appendChild(option);
+            });
+            
+        } catch (error) {
+            console.error('Error loading notebooks:', error);
+            showMessage('加载笔记本列表失败');
+        }
+    }
+
+    private bindCleanupEvents() {
+        // 扫描文件按钮
+        this.element.querySelector('#scanFilesBtn')?.addEventListener('click', () => {
+            this.scanFiles();
+        });
+
+        // 设置项更新
+        this.element.querySelector('#duplicateType')?.addEventListener('change', (e) => {
+            this.cleanupOptions.duplicateType = (e.target as HTMLSelectElement).value as any;
+        });
+
+        this.element.querySelector('#keepStrategy')?.addEventListener('change', (e) => {
+            this.cleanupOptions.keepStrategy = (e.target as HTMLSelectElement).value as any;
+        });
+
+        this.element.querySelector('#recursive')?.addEventListener('change', (e) => {
+            this.cleanupOptions.recursive = (e.target as HTMLInputElement).checked;
+        });
+
+        this.element.querySelector('#confirmBeforeDelete')?.addEventListener('change', (e) => {
+            this.cleanupOptions.confirmBeforeDelete = (e.target as HTMLInputElement).checked;
+        });
+    }
+
+    private async scanFiles() {
+        const notebookSelect = this.element.querySelector('#notebookSelect') as HTMLSelectElement;
+        const folderPathInput = this.element.querySelector('#folderPath') as HTMLInputElement;
+        
+        const notebook = notebookSelect.value;
+        const folderPath = folderPathInput.value;
+
+        if (!notebook) {
+            showMessage('请选择笔记本');
+            return;
+        }
+
+        if (!folderPath) {
+            showMessage('请输入文件夹路径');
+            return;
+        }
+
+        const settingsEl = this.element.querySelector('#cleanupSettings') as HTMLElement;
+        const loadingEl = this.element.querySelector('#cleanupLoading') as HTMLElement;
+        const contentEl = this.element.querySelector('#cleanupContent') as HTMLElement;
+
+        settingsEl.style.display = 'none';
+        loadingEl.style.display = 'block';
+        contentEl.style.display = 'none';
+
+        try {
+            this.currentNotebook = notebook;
+            this.currentPath = folderPath;
+            
+            const duplicateGroups = await this.optimizer.scanDuplicateFiles(
+                notebook, 
+                folderPath, 
+                this.cleanupOptions
+            );
+            
+            this.duplicateFilesCache = duplicateGroups;
+
+            loadingEl.style.display = 'none';
+            contentEl.style.display = 'block';
+
+            if (duplicateGroups.length === 0) {
+                contentEl.innerHTML = `
+                    <div class="optimizer-empty">
+                        <svg><use xlink:href="#iconInfo"></use></svg>
+                        <p>未找到重复文件</p>
+                        <button class="b3-button b3-button--outline" onclick="this.closest('#cleanupContent').style.display='none'; this.closest('.optimizer-container').querySelector('#cleanupSettings').style.display='block';">
+                            返回设置
+                        </button>
+                    </div>
+                `;
+            } else {
+                contentEl.innerHTML = this.getCleanupContentHTML(duplicateGroups);
+                this.bindCleanupContentEvents();
+            }
+
+        } catch (error) {
+            console.error('Error scanning files:', error);
+            loadingEl.style.display = 'none';
+            showMessage(`扫描失败: ${error.message}`);
+            
+            // 返回设置界面
+            settingsEl.style.display = 'block';
+        }
+    }
+
+    private getCleanupContentHTML(duplicateGroups: DuplicateFileGroup[]): string {
+        const totalFiles = duplicateGroups.reduce((sum, group) => sum + group.files.length, 0);
+        const duplicateCount = duplicateGroups.reduce((sum, group) => sum + (group.files.length - 1), 0);
+        
+        return `
+            <div class="optimizer-cleanup-header">
+                <div class="optimizer-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">重复文件组:</span>
+                        <span class="stat-value">${duplicateGroups.length}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">总文件数:</span>
+                        <span class="stat-value">${totalFiles}</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">可删除文件:</span>
+                        <span class="stat-value">${duplicateCount}</span>
+                    </div>
+                </div>
+                <div class="optimizer-actions">
+                    <button class="b3-button b3-button--outline" id="backToSettingsBtn">
+                        <svg><use xlink:href="#iconLeft"></use></svg>
+                        返回设置
+                    </button>
+                    <button class="b3-button b3-button--warning" id="cleanupAllBtn">
+                        <svg><use xlink:href="#iconTrashcan"></use></svg>
+                        清理所有重复文件
+                    </button>
+                </div>
+            </div>
+            <div class="optimizer-cleanup-list">
+                ${duplicateGroups.map((group, index) => this.getCleanupGroupHTML(group, index)).join('')}
+            </div>
+        `;
+    }
+
+    private getCleanupGroupHTML(group: DuplicateFileGroup, index: number): string {
+        return `
+            <div class="optimizer-cleanup-group" data-group-index="${index}">
+                <div class="group-header">
+                    <h4>${group.name}</h4>
+                    <div class="group-info">
+                        <span>类型: ${group.duplicateType === 'name' ? '文件名' : group.duplicateType === 'content' ? '内容' : '哈希'}</span>
+                        <span>文件数: ${group.files.length}</span>
+                        <span>总大小: ${this.formatFileSize(group.totalSize)}</span>
+                    </div>
+                    <button class="b3-button b3-button--small b3-button--warning" onclick="window.cleanupGroup(${index})">
+                        清理此组
+                    </button>
+                </div>
+                <div class="group-files">
+                    ${group.files.map((file, fileIndex) => this.getCleanupFileHTML(file, index, fileIndex)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    private getCleanupFileHTML(file: any, groupIndex: number, fileIndex: number): string {
+        return `
+            <div class="cleanup-file-item" data-group="${groupIndex}" data-file="${fileIndex}">
+                <div class="file-info">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-path">${file.path}</div>
+                    <div class="file-meta">
+                        <span>大小: ${this.formatFileSize(file.size)}</span>
+                        <span>修改时间: ${new Date(file.updated * 1000).toLocaleString()}</span>
+                    </div>
+                </div>
+                <div class="file-actions">
+                    <button class="b3-button b3-button--small b3-button--outline" onclick="window.previewFile(${groupIndex}, ${fileIndex})">
+                        预览
+                    </button>
+                    <button class="b3-button b3-button--small b3-button--warning" onclick="window.deleteFile(${groupIndex}, ${fileIndex})">
+                        删除
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    private bindCleanupContentEvents() {
+        // 返回设置按钮
+        this.element.querySelector('#backToSettingsBtn')?.addEventListener('click', () => {
+            const settingsEl = this.element.querySelector('#cleanupSettings') as HTMLElement;
+            const contentEl = this.element.querySelector('#cleanupContent') as HTMLElement;
+            
+            settingsEl.style.display = 'block';
+            contentEl.style.display = 'none';
+        });
+
+        // 清理所有重复文件按钮
+        this.element.querySelector('#cleanupAllBtn')?.addEventListener('click', () => {
+            this.cleanupAllFiles();
+        });
+
+        // 绑定全局方法
+        (window as any).cleanupGroup = (groupIndex: number) => {
+            this.cleanupGroup(groupIndex);
+        };
+
+        (window as any).deleteFile = (groupIndex: number, fileIndex: number) => {
+            this.deleteFile(groupIndex, fileIndex);
+        };
+
+        (window as any).previewFile = (groupIndex: number, fileIndex: number) => {
+            this.previewFile(groupIndex, fileIndex);
+        };
+    }
+
+    private async cleanupAllFiles() {
+        if (this.cleanupOptions.confirmBeforeDelete) {
+            const confirmed = await confirmDialog('确认清理', `即将清理 ${this.duplicateFilesCache.length} 组重复文件，此操作不可撤销。是否继续？`);
+            if (!confirmed) return;
+        }
+
+        try {
+            const deletedCount = await this.optimizer.cleanupDuplicateFiles(
+                this.duplicateFilesCache, 
+                this.cleanupOptions
+            );
+            
+            showMessage(`成功清理 ${deletedCount} 个重复文件`);
+            
+            // 重新扫描
+            this.scanFiles();
+        } catch (error) {
+            console.error('Error cleaning up files:', error);
+            showMessage(`清理失败: ${error.message}`);
+        }
+    }
+
+    private async cleanupGroup(groupIndex: number) {
+        const group = this.duplicateFilesCache[groupIndex];
+        if (!group) return;
+
+        try {
+            // 清理此组时不需要确认，直接执行删除
+            const deletedCount = await this.optimizer.cleanupDuplicateFiles(
+                [group], 
+                {
+                    ...this.cleanupOptions,
+                    confirmBeforeDelete: false // 强制不确认
+                }
+            );
+            
+            showMessage(`成功清理 ${deletedCount} 个重复文件`);
+            
+            // 删除后不重新扫描，直接从缓存中移除该组
+            this.duplicateFilesCache.splice(groupIndex, 1);
+            this.updateCleanupDisplay();
+            
+        } catch (error) {
+            console.error('Error cleaning up group:', error);
+            showMessage(`清理失败: ${error.message}`);
+        }
+    }
+
+    private async deleteFile(groupIndex: number, fileIndex: number) {
+        const group = this.duplicateFilesCache[groupIndex];
+        if (!group || !group.files[fileIndex]) return;
+
+        const file = group.files[fileIndex];
+        
+        if (this.cleanupOptions.confirmBeforeDelete) {
+            const confirmed = await confirmDialog('确认删除', `即将删除文件 "${file.name}"，此操作不可撤销。是否继续？`);
+            if (!confirmed) return;
+        }
+
+        try {
+            // 创建只包含这一个文件的临时组
+            const tempGroup: DuplicateFileGroup = {
+                name: group.name,
+                files: [file],
+                duplicateType: group.duplicateType,
+                totalSize: file.size
+            };
+            
+            await this.optimizer.cleanupDuplicateFiles([tempGroup], {
+                ...this.cleanupOptions,
+                confirmBeforeDelete: false // 已经确认过了
+            });
+            
+            showMessage(`成功删除文件: ${file.name}`);
+            
+            // 删除后不重新扫描，直接从缓存中移除该文件
+            group.files.splice(fileIndex, 1);
+            
+            // 如果组中只剩一个文件，移除整个组
+            if (group.files.length <= 1) {
+                this.duplicateFilesCache.splice(groupIndex, 1);
+            }
+            
+            this.updateCleanupDisplay();
+        } catch (error) {
+            console.error('Error deleting file:', error);
+            showMessage(`删除失败: ${error.message}`);
+        }
+    }
+
+    private previewFile(groupIndex: number, fileIndex: number) {
+        const group = this.duplicateFilesCache[groupIndex];
+        if (!group || !group.files[fileIndex]) return;
+
+        const file = group.files[fileIndex];
+        // 这里可以实现文件预览功能
+        showMessage(`预览文件: ${file.name}`);
+    }
+
+    private formatFileSize(bytes: number): string {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    /**
+     * 更新清理界面显示
+     */
+    private updateCleanupDisplay() {
+        const contentEl = this.element.querySelector('#cleanupContent') as HTMLElement;
+        if (!contentEl) return;
+
+        if (this.duplicateFilesCache.length === 0) {
+            contentEl.innerHTML = `
+                <div class="optimizer-empty">
+                    <svg><use xlink:href="#iconInfo"></use></svg>
+                    <p>所有重复文件已清理完成</p>
+                    <button class="b3-button b3-button--outline" onclick="this.closest('#cleanupContent').style.display='none'; this.closest('.optimizer-container').querySelector('#cleanupSettings').style.display='block';">
+                        返回设置
+                    </button>
+                </div>
+            `;
+        } else {
+            contentEl.innerHTML = this.getCleanupContentHTML(this.duplicateFilesCache);
+            this.bindCleanupContentEvents();
+        }
     }
 }

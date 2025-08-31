@@ -68,6 +68,14 @@ export default class SiYuanOptimizer extends Plugin {
             }
         });
 
+        this.addCommand({
+            langKey: "cleanupDuplicateFiles",
+            hotkey: "⇧⌘C",
+            callback: () => {
+                this.openOptimizerTab("cleanup");
+            }
+        });
+
         // 注册自定义页签
         const pluginI18n = this.i18n;
         this.addTab({
@@ -94,8 +102,9 @@ export default class SiYuanOptimizer extends Plugin {
         // ready
     }
 
-    private openOptimizerTab(defaultTab?: 'merge' | 'delete') {
-        const title = defaultTab === 'delete' ? this.i18n.deleteEmptyDocs : this.i18n.mergeDuplicateDocs;
+    private openOptimizerTab(defaultTab?: 'merge' | 'delete' | 'cleanup') {
+        const title = defaultTab === 'delete' ? this.i18n.deleteEmptyDocs : 
+                     defaultTab === 'cleanup' ? '清理重复文件' : this.i18n.mergeDuplicateDocs;
         const tab = openTab({
             app: this.app,
             custom: {
@@ -146,6 +155,14 @@ export default class SiYuanOptimizer extends Plugin {
             label: this.i18n.deleteEmptyDocs,
             click: () => {
                 this.openOptimizerTab("delete");
+            }
+        });
+
+        menu.addItem({
+            icon: "iconCleanUp",
+            label: "清理重复文件",
+            click: () => {
+                this.openOptimizerTab("cleanup");
             }
         });
 

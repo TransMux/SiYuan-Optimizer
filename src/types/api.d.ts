@@ -38,6 +38,22 @@ interface IResReadDir {
     isDir: boolean;
     isSymlink: boolean;
     name: string;
+    updated: number;
+}
+
+interface IResListDocsByPath {
+    box: string;
+    path: string;
+    files: TreeNode[];
+}
+
+interface TreeNode {
+    id?: string;
+    name: string;
+    path: string;
+    type: "doc" | "folder";
+    updated?: number;
+    subFileCount?: number;
 }
 
 interface IResExportMdContent {
